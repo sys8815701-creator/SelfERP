@@ -414,6 +414,88 @@ def apply_stock_audit(
     return {"applied": applied}
 
 
+# ── 안전재고 알림 ─────────────────────────────────────────────────────────────
+
+@router.get("/safety-stock-alerts")
+def safety_stock_alerts(
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    """안전재고 미달 품목 목록 + 부족 수량"""
+    items = db.query(Item).filter(
+        Item.business_id == business.id,
+        Item.safety_stock > 0,
+        Item.current_stock <= Item.safety_stock,
+        Item.is_active == 1,
+    ).order_by(Item.current_stock).all()
+    return [
+        {
+            "id":           i.id,
+            "item_code":    i.item_code,
+            "item_name":    i.item_name,
+            "item_type":    i.item_type,
+            "unit":         i.unit,
+            "current_stock": float(i.current_stock),
+            "safety_stock":  float(i.safety_stock),
+            "shortage":      round(float(i.safety_stock) - float(i.current_stock), 3),
+            "shortage_pct":  round((float(i.safety_stock) - float(i.current_stock)) / float(i.safety_stock) * 100, 1) if float(i.safety_stock) > 0 else 0,
+        }
+        for i in items
+    ]
+
+
+# ── 생산 효율 분석 ─────────────────────────────────────────────────────────────
+
+@router.get("/efficiency")
+def production_efficiency(
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    """생산 지시서 기반 효율 분석"""
+    orders = db.query(ProductionOrder).filter(
+        ProductionOrder.business_id == business.id,
+        ProductionOrder.status.in_(["완료", "생산중"]),
+    ).all()
+    if not orders:
+        return {"orders": [], "summary": {}}
+
+    analyzed = []
+    total_planned = 0; total_completed = 0; total_defect = 0
+    for o in orders:
+        completed = sum(float(r.completed_qty) for r in o.results)
+        defect    = sum(float(r.defect_qty)    for r in o.results)
+        planned   = float(o.planned_qty)
+        achievement = round(completed / planned * 100, 1) if planned > 0 else 0
+        defect_rate = round(defect / completed * 100, 1) if completed > 0 else 0
+        total_planned   += planned
+        total_completed += completed
+        total_defect    += defect
+        analyzed.append({
+            "order_id":    o.id,
+            "order_no":    o.order_no,
+            "product_name": o.product.item_name if o.product else None,
+            "status":       o.status,
+            "planned_qty":  planned,
+            "completed_qty": completed,
+            "defect_qty":    defect,
+            "achievement":   achievement,
+            "defect_rate":   defect_rate,
+            "planned_date":  str(o.planned_date) if o.planned_date else None,
+        })
+
+    avg_achievement = round(total_completed / total_planned * 100, 1) if total_planned > 0 else 0
+    avg_defect_rate  = round(total_defect / total_completed * 100, 1) if total_completed > 0 else 0
+    return {
+        "orders": sorted(analyzed, key=lambda x: x["achievement"]),
+        "summary": {
+            "total_orders":     len(orders),
+            "total_planned":    total_planned,
+            "total_completed":  total_completed,
+            "total_defect":     total_defect,
+            "avg_achievement":  avg_achievement,
+            "avg_defect_rate":  avg_defect_rate,
+        },
+    }
+
+
 # ── 입출고 이력 ───────────────────────────────────────────────────────────────
 
 @router.get("/inventory-logs")
