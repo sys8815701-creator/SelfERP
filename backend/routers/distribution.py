@@ -310,6 +310,97 @@ def create_return(body: ReturnCreate, db: Session = Depends(get_db), business=De
 
 # ── 유통 분석 ─────────────────────────────────────────────────────────────────
 
+@router.get("/delivery-fee-summary")
+def delivery_fee_summary(
+    year:  Optional[int] = None,
+    month: Optional[int] = None,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    """배송비 정산 — 차량별·월별 합계"""
+    from sqlalchemy import extract, func
+    bid = business.id
+    q = db.query(Delivery).filter(
+        Delivery.business_id == bid,
+        Delivery.status == "완료",
+    )
+    if year:  q = q.filter(extract("year",  Delivery.scheduled_date) == year)
+    if month: q = q.filter(extract("month", Delivery.scheduled_date) == month)
+
+    deliveries = q.all()
+    # 차량별 집계
+    by_vehicle: dict = {}
+    total_fee = 0.0
+    for d in deliveries:
+        fee = float(d.delivery_fee or 0)
+        total_fee += fee
+        vkey = d.vehicle_id or 0
+        if vkey not in by_vehicle:
+            by_vehicle[vkey] = {
+                "vehicle_id":    d.vehicle_id,
+                "vehicle_plate": d.vehicle.plate_no if d.vehicle else "차량 미지정",
+                "driver_name":   d.vehicle.driver_name if d.vehicle else None,
+                "count":         0,
+                "total_fee":     0.0,
+            }
+        by_vehicle[vkey]["count"] += 1
+        by_vehicle[vkey]["total_fee"] += fee
+
+    # 월별 집계
+    monthly_q = db.query(
+        extract("year",  Delivery.scheduled_date).label("year"),
+        extract("month", Delivery.scheduled_date).label("month"),
+        func.count(Delivery.id).label("count"),
+        func.sum(Delivery.delivery_fee).label("total_fee"),
+    ).filter(
+        Delivery.business_id == bid,
+        Delivery.status == "완료",
+        Delivery.scheduled_date.isnot(None),
+    ).group_by("year", "month").order_by("year", "month")
+
+    return {
+        "total_fee":    round(total_fee, 2),
+        "total_count":  len(deliveries),
+        "by_vehicle":   sorted(by_vehicle.values(), key=lambda x: -x["total_fee"]),
+        "monthly":      [{"year": int(r.year), "month": int(r.month), "count": int(r.count), "total_fee": float(r.total_fee or 0)} for r in monthly_q.all()],
+    }
+
+
+@router.get("/route-grouping")
+def route_grouping(
+    scheduled_date: Optional[date] = None,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    """배송 경로 최적화 — 같은 날 배송 지역별 그룹핑 제안"""
+    from datetime import date as date_cls
+    target = scheduled_date or date_cls.today()
+    deliveries = db.query(Delivery).filter(
+        Delivery.business_id == business.id,
+        Delivery.scheduled_date == target,
+        Delivery.status.in_(["대기", "배송중"]),
+    ).all()
+
+    groups: dict = {}
+    for d in deliveries:
+        dest = d.destination or ""
+        # 시/도 추출 (앞 2~3자)
+        region = dest[:3].strip() if dest else "기타"
+        if region not in groups:
+            groups[region] = []
+        groups[region].append({
+            "id":              d.id,
+            "delivery_no":     d.delivery_no or f"#{d.id}",
+            "destination":     dest,
+            "recipient":       d.recipient,
+            "vehicle_plate":   d.vehicle.plate_no if d.vehicle else None,
+            "status":          d.status,
+        })
+    return {
+        "date":   str(target),
+        "total":  len(deliveries),
+        "groups": [{"region": k, "count": len(v), "deliveries": v} for k, v in sorted(groups.items())],
+    }
+
+
 @router.get("/analytics")
 def distribution_analytics(
     db: Session = Depends(get_db), business=Depends(get_current_business),

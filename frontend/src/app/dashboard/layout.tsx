@@ -55,6 +55,8 @@ const distributionMenu = [
   { label: "차량 관리",     href: "/dashboard/distribution/vehicles",         icon: "◉" },
   { label: "반품 처리",     href: "/dashboard/distribution/returns",          icon: "◊" },
   { label: "유통 분석",     href: "/dashboard/distribution/analytics",        icon: "◎" },
+  { label: "배송비 정산",  href: "/dashboard/distribution/fee",              icon: "◑" },
+  { label: "경로 최적화",  href: "/dashboard/distribution/route",            icon: "◐" },
 ];
 
 const insightMenu = [
