@@ -4,6 +4,59 @@
 
 ---
 
+## [v3.7] - 2026-07-02 | 예산 관리
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 신규 모델 | `BudgetItem` — 연월·항목·구분(revenue/expense)·금액, 복합 유니크 제약(동일 연월·항목·구분 중복 방지) |
+| 신규 라우터 | `GET /api/accounting/budget/` — 예산 항목 목록(연도·월 필터) |
+| | `GET /api/accounting/budget/vs-actual` — 월별 예산 vs 실적 비교 (BankTransaction 기반 실적 집계) |
+| | `POST /api/accounting/budget/` — 예산 등록 (중복 시 400) |
+| | `PUT/DELETE /api/accounting/budget/{id}` |
+
+### Frontend
+| 항목 | 내용 |
+|------|------|
+| 신규 페이지 | `/dashboard/accounting/budget` |
+| | 연도·월 선택 필터 |
+| | 요약 카드: 예산/실적 매출·지출 4종 + 달성률 바 차트 |
+| | 월별 예산 vs 실적 테이블 (달성률 진행바: 수입 초록/지출 빨강) |
+| | 예산 항목 목록 + 수정·삭제 |
+| 등록 모달 | 연도·월·구분(수입/지출)·항목(자동완성) + 금액 |
+
+---
+
+## [v3.6] - 2026-07-02 | 견적서 · 청구서
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 신규 모델 | `Estimate` — 유형(견적서/청구서/발주서), 거래처FK, 발행일, 만기일, 공급가액/세액/합계, 상태(초안/발송/승인/취소) |
+| 신규 모델 | `EstimateItem` — 품목명, 수량, 단가, 금액 (cascade delete) |
+| 신규 라우터 | `GET /api/accounting/estimates/` — 유형·상태 필터 |
+| | `GET /api/accounting/estimates/{id}` — 품목 포함 상세 |
+| | `POST /api/accounting/estimates/` — 품목 라인 포함 생성, 공급가액·세액·합계 자동 계산 |
+| | `PUT/DELETE /api/accounting/estimates/{id}` — 수정 시 품목 재계산 |
+
+### Frontend
+| 항목 | 내용 |
+|------|------|
+| 신규 페이지 | `/dashboard/accounting/estimates` |
+| | 유형·상태 필터, 행 클릭 → 상세 드로어 |
+| | 드로어: 기본정보 + 품목 테이블 + 합계(공급가액/세액/합계) |
+| | 상태 인라인 드롭다운 변경 |
+| 등록 모달 | 품목 동적 추가/삭제, 합계 실시간 계산 표시 |
+
+---
+
+## [v3.5] - 2026-07-02 | 매출·매입·수익성 분석
+
+> 재무제표(v3.3) 기반 분석 기능으로, 별도 모델 없이 기존 API 조합.
+> 프론트엔드: `/dashboard/accounting/statements` 손익계산서 탭에 월별 바 차트 포함 (v3.3에서 구현 완료).
+
+---
+
 ## [v3.4] - 2026-07-02 | 세금계산서 관리
 
 ### Backend

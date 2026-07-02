@@ -33,3 +33,5 @@ class Business(Base):
     receivables       = relationship("AccountReceivable", back_populates="business")
     payables          = relationship("AccountPayable",    back_populates="business")
     tax_invoices      = relationship("TaxInvoice",        back_populates="business")
+    estimates         = relationship("Estimate",          back_populates="business")
+    budgets           = relationship("BudgetItem",        back_populates="business")
