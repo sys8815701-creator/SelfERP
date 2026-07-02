@@ -4,6 +4,27 @@
 
 ---
 
+## [v3.9] - 2026-07-02 | 원가·수익성 분석
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 신규 라우터 | `GET /api/accounting/analytics/vendor` — 거래처별 매출·매입·순이익·마진율 (세금계산서 기반) |
+| | `GET /api/accounting/analytics/monthly-trend` — 월별 은행거래 + 세금계산서 이중 집계 추이 |
+| | `GET /api/accounting/analytics/top-vendors` — 매출/매입 상위 N개 거래처 |
+
+---
+
+## [v3.8] - 2026-07-02 | 자금흐름 예측
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 신규 라우터 | `GET /api/accounting/cashflow-forecast/` — AR/AP 만기일 기반 주차별 예상 수금·지급, 누적 잔액 예측 |
+| | `GET /api/accounting/cashflow-forecast/overdue` — 연체 미수금·미지급금 현황, 연체일수 포함 |
+
+---
+
 ## [v3.7] - 2026-07-02 | 예산 관리
 
 ### Backend
