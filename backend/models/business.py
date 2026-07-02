@@ -40,3 +40,7 @@ class Business(Base):
     production_orders = relationship("ProductionOrder",   back_populates="business")
     production_results= relationship("ProductionResult",  back_populates="business")
     inventory_logs    = relationship("InventoryLog",      back_populates="business")
+    vehicles          = relationship("Vehicle",           back_populates="business")
+    sales_orders      = relationship("SalesOrder",        back_populates="business")
+    deliveries        = relationship("Delivery",          back_populates="business")
+    delivery_returns  = relationship("DeliveryReturn",    back_populates="business")

@@ -4,6 +4,44 @@
 
 ---
 
+## [v7.1] - 2026-07-02 | 유통 모듈 — 전체 구현
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 신규 모델 | `Vehicle` — 차량번호, 기사명/연락처, 최대적재량 |
+| | `SalesOrder` — 수주 헤더 (고객사FK, 납기일, 상태 6종), `SalesOrderItem` cascade |
+| | `Delivery` — 배송 지시 (수주FK, 차량FK, 배송지, 수령인, 배송비, 상태 5종) |
+| | `DeliveryReturn` — 반품 (배송FK, 품목FK, 수량, 사유 5종, 재고복원 여부) |
+| 신규 라우터 | `GET /api/distribution/summary` — 대시보드 요약 4종 |
+| | `GET/POST/PUT/DELETE /api/distribution/vehicles` — 차량 CRUD |
+| | `GET/POST/PUT/DELETE /api/distribution/orders` — 수주 CRUD |
+| | `GET/POST/PUT/DELETE /api/distribution/deliveries` — 배송 CRUD |
+| | 배송 완료 시 연결 수주 상태 자동 완료 처리 |
+| | `GET/POST /api/distribution/returns` — 반품 등록/조회 |
+| | 반품 재고 복원 시 InventoryLog(반품) 자동 생성 |
+| | `GET /api/distribution/analytics` — 배송완료율·반품률·월별수주 집계 |
+
+### Frontend
+| 항목 | 내용 |
+|------|------|
+| 신규 페이지 | `/dashboard/distribution` — 유통 대시보드 |
+| | 요약 카드 4종, 배송효율 진행바, 바로가기 5개 |
+| 신규 페이지 | `/dashboard/distribution/vehicles` — 차량 관리 |
+| | 목록 + 상세 드로어, CRUD 모달 |
+| 신규 페이지 | `/dashboard/distribution/orders` — 수주 관리 |
+| | 납기일 초과 행 강조, 상태 직접 변경, 품목 라인 동적 등록 |
+| | 상세 드로어: 품목별 수량/단가/금액 |
+| 신규 페이지 | `/dashboard/distribution/deliveries` — 배송 지시 |
+| | 날짜/상태 필터, 상태 직접 변경, 완료 시 자동 완료일 기록 |
+| 신규 페이지 | `/dashboard/distribution/returns` — 반품 처리 |
+| | 사유별 색상 뱃지, 재고복원 체크박스 |
+| 신규 페이지 | `/dashboard/distribution/analytics` — 유통 분석 |
+| | KPI 카드 4종, 배송완료율/반품률 진행바, 월별 수주 막대 차트 |
+| 사이드바 | 유통관리 섹션 추가 (대시보드/수주/배송/차량/반품/분석 6개 메뉴) |
+
+---
+
 ## [v5.5] - 2026-07-02 | 생산 대시보드 고도화
 
 ### Frontend

@@ -48,6 +48,15 @@ const productionMenu = [
   { label: "효율 · 알림",  href: "/dashboard/production/efficiency",   icon: "◒" },
 ];
 
+const distributionMenu = [
+  { label: "유통 대시보드",  href: "/dashboard/distribution",                  icon: "◆" },
+  { label: "수주 관리",     href: "/dashboard/distribution/orders",           icon: "◇" },
+  { label: "배송 지시",     href: "/dashboard/distribution/deliveries",       icon: "◈" },
+  { label: "차량 관리",     href: "/dashboard/distribution/vehicles",         icon: "◉" },
+  { label: "반품 처리",     href: "/dashboard/distribution/returns",          icon: "◊" },
+  { label: "유통 분석",     href: "/dashboard/distribution/analytics",        icon: "◎" },
+];
+
 const insightMenu = [
   { label: "거래처 · 사업장", href: "/dashboard/business",  icon: "♟" },
   { label: "경영 분석",    href: "/dashboard/analytics", icon: "↗" },
@@ -381,6 +390,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {accountingMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>생산관리</p>
           {productionMenu.map(item => <MenuItem key={item.href} item={item} />)}
+          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>유통관리</p>
+          {distributionMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>인사이트</p>
           {insightMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>설정</p>
