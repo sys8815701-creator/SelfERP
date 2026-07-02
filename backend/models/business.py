@@ -32,3 +32,4 @@ class Business(Base):
     severances        = relationship("Severance", back_populates="business")
     receivables       = relationship("AccountReceivable", back_populates="business")
     payables          = relationship("AccountPayable",    back_populates="business")
+    tax_invoices      = relationship("TaxInvoice",        back_populates="business")

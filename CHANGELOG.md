@@ -4,6 +4,28 @@
 
 ---
 
+## [v3.4] - 2026-07-02 | 세금계산서 관리
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 신규 모델 | `TaxInvoice` — 발행/수취 구분, 거래처FK, 승인번호, 발행일, 공급가액, 세액, 합계, 품목, 상태(임시저장/발행완료/취소) |
+| 신규 라우터 | `GET /api/accounting/tax-invoice/summary` — 매출/매입 건수·공급가액·세액, 부가세 납부예정액(매출세액-매입세액) |
+| | `GET /api/accounting/tax-invoice/` — 발행/수취·상태·연도·월 필터 |
+| | `POST /api/accounting/tax-invoice/` — 등록 (세액 None 시 공급가액×10% 자동계산, total_amount 자동 계산) |
+| | `PUT/DELETE /api/accounting/tax-invoice/{id}` |
+
+### Frontend
+| 항목 | 내용 |
+|------|------|
+| 신규 페이지 | `/dashboard/accounting/tax-invoice` |
+| | 요약 카드: 매출계산서 건수/금액, 매입계산서 건수/금액, 부가세납부예정액(양수 시 빨강), 세액 |
+| | 연도·발행구분·상태 필터 |
+| | 상태 인라인 드롭다운 변경 |
+| 등록 모달 | 공급가액 입력 시 세액 자동(10%) 계산, 합계 실시간 표시 |
+
+---
+
 ## [v3.3] - 2026-07-02 | 재무제표 자동 생성
 
 ### Backend

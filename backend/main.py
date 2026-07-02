@@ -14,6 +14,7 @@ from routers import payroll as payroll_router
 from routers import vendor as vendor_router
 from routers import ar_ap as ar_ap_router
 from routers import statements as statements_router
+from routers import tax_invoice as tax_invoice_router
 from sqlalchemy import text
 
 app = FastAPI(title="Accounting Platform API")
@@ -62,6 +63,7 @@ app.include_router(payroll_router.router)
 app.include_router(vendor_router.router)
 app.include_router(ar_ap_router.router)
 app.include_router(statements_router.router)
+app.include_router(tax_invoice_router.router)
 
 @app.get("/")
 def root():
