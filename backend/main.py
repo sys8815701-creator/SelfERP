@@ -9,6 +9,7 @@ from core.socket import sio
 import socketio
 import models
 from routers import auth, ledger, ocr, expense, upload, business, dashboard, ai, oauth
+from routers import hr
 from sqlalchemy import text
 
 app = FastAPI(title="Accounting Platform API")
@@ -52,6 +53,7 @@ app.include_router(upload.router)
 app.include_router(business.router)
 app.include_router(dashboard.router)
 app.include_router(ai.router)
+app.include_router(hr.router)
 
 @app.get("/")
 def root():

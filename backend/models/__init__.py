@@ -9,3 +9,7 @@ from models.bank_transaction import BankTransaction
 from models.vendor import Vendor
 from models.todo import Todo
 from models.email_verification import EmailVerification
+# HR 모듈
+from models.department import Department
+from models.position import Position
+from models.employee import Employee

@@ -23,3 +23,6 @@ class Business(Base):
     card_sales        = relationship("CardSale", back_populates="business")
     bank_transactions = relationship("BankTransaction", back_populates="business")
     vendors           = relationship("Vendor", back_populates="business")
+    departments       = relationship("Department", back_populates="business")
+    positions         = relationship("Position", back_populates="business")
+    employees         = relationship("Employee", back_populates="business")

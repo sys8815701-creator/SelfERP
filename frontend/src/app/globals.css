@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* ── 공통 (양쪽 테마 동일) ── */
+:root {
+  --accent:       #FFBE50;
+  --accent-hover: #E5A83A;
+  --accent-text:  #111111;   /* 노란 배경 위 텍스트 */
+}
+
+/* ── 다크 모드 (기본) ── */
+[data-theme="dark"] {
+  --bg:            #111111;
+  --bg-surface:    #1A1A1A;
+  --bg-surface-2:  #222222;
+  --bg-surface-3:  #2C2C2C;
+  --border:        #2E2E2E;
+  --border-subtle: #222222;
+  --text-primary:  #FFFFFF;
+  --text-secondary:#C4C4C4;
+  --text-muted:    #888888;
+  --text-subtle:   #555555;
+  --accent-light:  rgba(255, 190, 80, 0.12);
+  --shadow:        0 1px 4px rgba(0, 0, 0, 0.5);
+  --shadow-lg:     0 8px 32px rgba(0, 0, 0, 0.6);
+
+  /* 거래 목록 행 */
+  --tx-row-bg:         #111111;
+  --tx-row-hover-bg:   #1a1a1a;
+  --tx-badge-bg:       #000000;
+  --tx-badge-border:   rgba(255, 190, 80, 0.35);
+}
+
+/* ── 라이트 모드 ── */
+[data-theme="light"] {
+  --bg:            #FFFFFF;
+  --bg-surface:    #F8FAFC;
+  --bg-surface-2:  #F1F5F9;
+  --bg-surface-3:  #E8EEF4;
+  --border:        #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --text-primary:  #0F172A;
+  --text-secondary:#374151;
+  --text-muted:    #64748B;
+  --text-subtle:   #94A3B8;
+  --accent-light:  #FFFBEB;
+  --shadow:        0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg:     0 8px 32px rgba(0, 0, 0, 0.12);
+
+  /* 거래 목록 행 */
+  --tx-row-bg:         #FFFFFF;
+  --tx-row-hover-bg:   #F8FAFC;
+  --tx-badge-bg:       #FFFFFF;
+  --tx-badge-border:   #111111;
+}
+
+/* ── 기본 스타일 ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── 스크롤바 ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
