@@ -59,6 +59,13 @@ const distributionMenu = [
   { label: "경로 최적화",  href: "/dashboard/distribution/route",            icon: "◐" },
 ];
 
+const integratedMenu = [
+  { label: "통합 대시보드", href: "/dashboard/integrated",           icon: "◈" },
+  { label: "알림 센터",     href: "/dashboard/integrated/alerts",    icon: "◉" },
+  { label: "데이터 내보내기", href: "/dashboard/integrated/export",  icon: "◊" },
+  { label: "권한 관리",     href: "/dashboard/integrated/access",    icon: "◎" },
+];
+
 const insightMenu = [
   { label: "거래처 · 사업장", href: "/dashboard/business",  icon: "♟" },
   { label: "경영 분석",    href: "/dashboard/analytics", icon: "↗" },
@@ -394,6 +401,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {productionMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>유통관리</p>
           {distributionMenu.map(item => <MenuItem key={item.href} item={item} />)}
+          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>통합관리</p>
+          {integratedMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>인사이트</p>
           {insightMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>설정</p>
