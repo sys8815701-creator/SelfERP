@@ -1,0 +1,351 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import date
+from decimal import Decimal
+from core.database import get_db
+from routers.auth import get_current_business
+from models.production import Item, BOM, BOMLine, ProductionOrder, ProductionResult, InventoryLog
+
+router = APIRouter(prefix="/api/production", tags=["production"])
+
+
+# ── Pydantic 스키마 ──────────────────────────────────────────────────────────
+
+class ItemCreate(BaseModel):
+    item_code:     Optional[str] = None
+    item_name:     str
+    item_type:     Optional[str] = "원자재"
+    unit:          Optional[str] = "개"
+    unit_price:    Optional[Decimal] = Decimal("0")
+    current_stock: Optional[Decimal] = Decimal("0")
+    safety_stock:  Optional[Decimal] = Decimal("0")
+    max_stock:     Optional[Decimal] = Decimal("0")
+    description:   Optional[str] = None
+    is_active:     Optional[int] = 1
+
+class ItemUpdate(BaseModel):
+    item_code:     Optional[str] = None
+    item_name:     Optional[str] = None
+    item_type:     Optional[str] = None
+    unit:          Optional[str] = None
+    unit_price:    Optional[Decimal] = None
+    safety_stock:  Optional[Decimal] = None
+    max_stock:     Optional[Decimal] = None
+    description:   Optional[str] = None
+    is_active:     Optional[int] = None
+
+class BOMLineBody(BaseModel):
+    item_id:  int
+    quantity: Decimal
+    unit:     Optional[str] = None
+    note:     Optional[str] = None
+
+class BOMCreate(BaseModel):
+    product_id:  int
+    version:     Optional[str] = "1.0"
+    description: Optional[str] = None
+    lines:       List[BOMLineBody] = []
+
+class ProductionOrderCreate(BaseModel):
+    order_no:     Optional[str] = None
+    product_id:   int
+    bom_id:       Optional[int] = None
+    planned_qty:  Decimal
+    planned_date: Optional[date] = None
+    note:         Optional[str] = None
+
+class ProductionResultCreate(BaseModel):
+    order_id:       int
+    completed_qty:  Decimal
+    defect_qty:     Optional[Decimal] = Decimal("0")
+    completed_date: date
+    worker_note:    Optional[str] = None
+
+class InventoryLogCreate(BaseModel):
+    item_id:      int
+    log_type:     str
+    quantity:     Decimal   # 입고=양수, 출고=음수
+    unit_price:   Optional[Decimal] = Decimal("0")
+    ref_no:       Optional[str] = None
+    reference_no: Optional[str] = None  # alias for ref_no
+    note:         Optional[str] = None
+    log_date:     Optional[date] = None
+
+
+# ── 헬퍼 ─────────────────────────────────────────────────────────────────────
+
+def _item_dict(i: Item) -> dict:
+    d = {c.name: getattr(i, c.name) for c in i.__table__.columns}
+    d["is_low_stock"] = float(i.current_stock) <= float(i.safety_stock) and float(i.safety_stock) > 0
+    return d
+
+
+# ── 요약 ──────────────────────────────────────────────────────────────────────
+
+@router.get("/summary")
+def production_summary(
+    db: Session = Depends(get_db),
+    business=Depends(get_current_business),
+):
+    bid = business.id
+    total_items   = db.query(Item).filter(Item.business_id == bid).count()
+    low_stock     = db.query(Item).filter(
+        Item.business_id == bid,
+        Item.safety_stock > 0,
+        Item.current_stock <= Item.safety_stock,
+    ).count()
+    active_orders = db.query(ProductionOrder).filter(
+        ProductionOrder.business_id == bid,
+        ProductionOrder.status.in_(["대기", "생산중"]),
+    ).count()
+    total_boms    = db.query(BOM).filter(BOM.business_id == bid).count()
+    return {
+        "total_items":   total_items,
+        "low_stock":     low_stock,
+        "active_orders": active_orders,
+        "total_boms":    total_boms,
+    }
+
+
+# ── 품목 ──────────────────────────────────────────────────────────────────────
+
+@router.get("/items")
+def list_items(
+    item_type:    Optional[str] = None,
+    low_stock_only: bool = False,
+    search:       Optional[str] = None,
+    db: Session = Depends(get_db),
+    business=Depends(get_current_business),
+):
+    q = db.query(Item).filter(Item.business_id == business.id)
+    if item_type:      q = q.filter(Item.item_type == item_type)
+    if low_stock_only: q = q.filter(Item.safety_stock > 0, Item.current_stock <= Item.safety_stock)
+    if search:
+        like = f"%{search}%"
+        q = q.filter(Item.item_name.like(like) | Item.item_code.like(like))
+    return [_item_dict(i) for i in q.order_by(Item.item_name).all()]
+
+
+@router.post("/items", status_code=201)
+def create_item(body: ItemCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+    item = Item(business_id=business.id, **body.model_dump())
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return _item_dict(item)
+
+
+@router.put("/items/{item_id}")
+def update_item(
+    item_id: int, body: ItemUpdate,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    item = db.query(Item).filter(Item.id == item_id, Item.business_id == business.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="품목을 찾을 수 없습니다.")
+    for k, v in body.model_dump(exclude_none=True).items():
+        setattr(item, k, v)
+    db.commit()
+    db.refresh(item)
+    return _item_dict(item)
+
+
+@router.delete("/items/{item_id}")
+def delete_item(item_id: int, db: Session = Depends(get_db), business=Depends(get_current_business)):
+    item = db.query(Item).filter(Item.id == item_id, Item.business_id == business.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="품목을 찾을 수 없습니다.")
+    if item.logs:
+        raise HTTPException(status_code=400, detail="입출고 이력이 있는 품목은 삭제할 수 없습니다.")
+    db.delete(item)
+    db.commit()
+    return {"ok": True}
+
+
+# ── BOM ───────────────────────────────────────────────────────────────────────
+
+@router.get("/boms")
+def list_boms(db: Session = Depends(get_db), business=Depends(get_current_business)):
+    q = db.query(BOM).filter(BOM.business_id == business.id)
+    result = []
+    for b in q.all():
+        d = {c.name: getattr(b, c.name) for c in b.__table__.columns}
+        d["product_name"] = b.product.item_name if b.product else None
+        d["lines"] = [{
+            **{c.name: getattr(l, c.name) for c in l.__table__.columns},
+            "item_name": l.item.item_name if l.item else None,
+        } for l in b.lines]
+        result.append(d)
+    return result
+
+
+@router.post("/boms", status_code=201)
+def create_bom(body: BOMCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+    bom = BOM(
+        business_id=business.id,
+        product_id=body.product_id,
+        version=body.version,
+        description=body.description,
+    )
+    for l in body.lines:
+        bom.lines.append(BOMLine(item_id=l.item_id, quantity=l.quantity, unit=l.unit, note=l.note))
+    db.add(bom)
+    db.commit()
+    db.refresh(bom)
+    return {"id": bom.id, "product_id": bom.product_id, "version": bom.version}
+
+
+@router.delete("/boms/{bom_id}")
+def delete_bom(bom_id: int, db: Session = Depends(get_db), business=Depends(get_current_business)):
+    b = db.query(BOM).filter(BOM.id == bom_id, BOM.business_id == business.id).first()
+    if not b:
+        raise HTTPException(status_code=404, detail="BOM을 찾을 수 없습니다.")
+    db.delete(b)
+    db.commit()
+    return {"ok": True}
+
+
+# ── 생산 지시서 ───────────────────────────────────────────────────────────────
+
+@router.get("/orders")
+def list_orders(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    q = db.query(ProductionOrder).filter(ProductionOrder.business_id == business.id)
+    if status: q = q.filter(ProductionOrder.status == status)
+    result = []
+    for o in q.order_by(ProductionOrder.planned_date.desc()).all():
+        d = {c.name: getattr(o, c.name) for c in o.__table__.columns}
+        d["product_name"] = o.product.item_name if o.product else None
+        d["completed_qty"] = sum(float(r.completed_qty) for r in o.results)
+        d["defect_qty"]    = sum(float(r.defect_qty)    for r in o.results)
+        result.append(d)
+    return result
+
+
+@router.post("/orders", status_code=201)
+def create_order(body: ProductionOrderCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+    order = ProductionOrder(business_id=business.id, **body.model_dump())
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    return {c.name: getattr(order, c.name) for c in order.__table__.columns}
+
+
+@router.put("/orders/{order_id}")
+def update_order(
+    order_id: int, body: dict,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    o = db.query(ProductionOrder).filter(
+        ProductionOrder.id == order_id, ProductionOrder.business_id == business.id
+    ).first()
+    if not o:
+        raise HTTPException(status_code=404, detail="생산 지시서를 찾을 수 없습니다.")
+    for k, v in body.items():
+        if hasattr(o, k):
+            setattr(o, k, v)
+    db.commit()
+    db.refresh(o)
+    return {c.name: getattr(o, c.name) for c in o.__table__.columns}
+
+
+# ── 생산 실적 ─────────────────────────────────────────────────────────────────
+
+@router.get("/results")
+def list_results(
+    order_id: Optional[int] = None,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    q = db.query(ProductionResult).filter(ProductionResult.business_id == business.id)
+    if order_id: q = q.filter(ProductionResult.order_id == order_id)
+    result = []
+    for r in q.order_by(ProductionResult.completed_date.desc()).all():
+        d = {c.name: getattr(r, c.name) for c in r.__table__.columns}
+        if r.order:
+            d["order_no"]     = r.order.order_no
+            d["product_name"] = r.order.product.item_name if r.order.product else None
+        else:
+            d["order_no"] = None
+            d["product_name"] = None
+        result.append(d)
+    return result
+
+
+@router.post("/results", status_code=201)
+def create_result(body: ProductionResultCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+    order = db.query(ProductionOrder).filter(
+        ProductionOrder.id == body.order_id, ProductionOrder.business_id == business.id
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="생산 지시서를 찾을 수 없습니다.")
+    result = ProductionResult(business_id=business.id, **body.model_dump())
+    db.add(result)
+    # 완제품 재고 증가
+    product = db.query(Item).filter(Item.id == order.product_id).first()
+    if product:
+        product.current_stock = float(product.current_stock) + float(body.completed_qty)
+    # 입출고 로그
+    log = InventoryLog(
+        business_id=business.id,
+        item_id=order.product_id,
+        log_type="생산완료",
+        quantity=body.completed_qty,
+        log_date=body.completed_date,
+        ref_no=order.order_no,
+        note=f"생산 지시서 #{order.id} 완료",
+    )
+    db.add(log)
+    # 모든 수량 완료 시 상태 변경
+    total_completed = sum(float(r.completed_qty) for r in order.results) + float(body.completed_qty)
+    if total_completed >= float(order.planned_qty):
+        order.status = "완료"
+    else:
+        order.status = "생산중"
+    db.commit()
+    db.refresh(result)
+    return {c.name: getattr(result, c.name) for c in result.__table__.columns}
+
+
+# ── 입출고 이력 ───────────────────────────────────────────────────────────────
+
+@router.get("/inventory-logs")
+def list_logs(
+    item_id:  Optional[int] = None,
+    log_type: Optional[str] = None,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    q = db.query(InventoryLog).filter(InventoryLog.business_id == business.id)
+    if item_id:  q = q.filter(InventoryLog.item_id  == item_id)
+    if log_type: q = q.filter(InventoryLog.log_type == log_type)
+    result = []
+    for log in q.order_by(InventoryLog.log_date.desc()).all():
+        d = {c.name: getattr(log, c.name) for c in log.__table__.columns}
+        d["item_name"] = log.item.item_name if log.item else None
+        result.append(d)
+    return result
+
+
+@router.post("/inventory-logs", status_code=201)
+def create_log(body: InventoryLogCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+    from datetime import date as date_cls
+    item = db.query(Item).filter(Item.id == body.item_id, Item.business_id == business.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="품목을 찾을 수 없습니다.")
+    data = body.model_dump(exclude_none=True)
+    # reference_no → ref_no 별칭 처리
+    if "reference_no" in data:
+        data["ref_no"] = data.pop("reference_no")
+    if "log_date" not in data or data["log_date"] is None:
+        data["log_date"] = date_cls.today()
+    log = InventoryLog(business_id=business.id, **data)
+    db.add(log)
+    # 재고 업데이트
+    item.current_stock = float(item.current_stock) + float(body.quantity)
+    db.commit()
+    db.refresh(log)
+    return {c.name: getattr(log, c.name) for c in log.__table__.columns}

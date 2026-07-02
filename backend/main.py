@@ -19,6 +19,7 @@ from routers import estimate as estimate_router
 from routers import budget as budget_router
 from routers import cashflow_forecast as cashflow_forecast_router
 from routers import analytics as accounting_analytics_router
+from routers import production as production_router
 from sqlalchemy import text
 
 app = FastAPI(title="Accounting Platform API")
@@ -72,6 +73,7 @@ app.include_router(estimate_router.router)
 app.include_router(budget_router.router)
 app.include_router(cashflow_forecast_router.router)
 app.include_router(accounting_analytics_router.router)
+app.include_router(production_router.router)
 
 @app.get("/")
 def root():

@@ -21,3 +21,5 @@ from models.ar_ap import AccountReceivable, AccountPayable
 from models.tax_invoice import TaxInvoice
 from models.estimate import Estimate, EstimateItem
 from models.budget import BudgetItem
+# 생산 모듈
+from models.production import Item, BOM, BOMLine, ProductionOrder, ProductionResult, InventoryLog

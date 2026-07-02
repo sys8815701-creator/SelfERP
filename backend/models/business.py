@@ -35,3 +35,8 @@ class Business(Base):
     tax_invoices      = relationship("TaxInvoice",        back_populates="business")
     estimates         = relationship("Estimate",          back_populates="business")
     budgets           = relationship("BudgetItem",        back_populates="business")
+    items             = relationship("Item",              back_populates="business")
+    boms              = relationship("BOM",               back_populates="business")
+    production_orders = relationship("ProductionOrder",   back_populates="business")
+    production_results= relationship("ProductionResult",  back_populates="business")
+    inventory_logs    = relationship("InventoryLog",      back_populates="business")

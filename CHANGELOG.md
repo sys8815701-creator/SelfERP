@@ -4,6 +4,46 @@
 
 ---
 
+## [v5.1] - 2026-07-02 | 생산 모듈 — 프론트엔드 전체 구현
+
+### Backend 보완
+| 항목 | 내용 |
+|------|------|
+| 신규 엔드포인트 | `GET /api/production/results` — 생산 실적 목록 조회 (order_id 필터, order·product 조인) |
+| 버그 수정 | `POST /inventory-logs` — `reference_no` → `ref_no` 별칭 처리, `log_date` 미입력 시 오늘 날짜 자동 설정 |
+| 스키마 보완 | `InventoryLogCreate.log_date` Optional 처리, `reference_no` 필드 추가 |
+
+### Frontend
+| 항목 | 내용 |
+|------|------|
+| 신규 페이지 | `/dashboard/production/bom` — BOM(자재명세서) 목록·등록·삭제 |
+| | 좌측 목록 + 우측 상세 드로어 (구성 자재 라인 표시) |
+| | 등록 모달: 완제품/반제품 선택, 버전, 자재 라인 동적 추가/삭제 |
+| 신규 페이지 | `/dashboard/production/orders` — 생산 지시서 관리 |
+| | 상태 셀렉트 직접 변경 (`PUT /orders/{id}`) |
+| | 인라인 실적 등록 버튼 → 실적 모달 팝업 |
+| | 완료 수량·불량 수량 실시간 집계 표시 |
+| 신규 페이지 | `/dashboard/production/results` — 생산 실적 조회 |
+| | 요약 카드: 총 완료수량, 총 불량수량, 불량률 |
+| | 불량률 5% 초과 시 빨간색 강조 |
+| 신규 페이지 | `/dashboard/production/inventory` — 입출고 이력 |
+| | 품목·유형 복합 필터 |
+| | 유형별 색상 뱃지 (입고/출고/생산소비/생산완료/조정/반품) |
+| | 수량 부호 표시 (입고=+, 출고=-) |
+| | 등록 모달: 출고/생산소비 자동 음수 처리 안내 |
+
+### 생산 모듈 전체 구성 (v5.1 완료 기준)
+| 페이지 | 경로 | 주요 기능 |
+|--------|------|-----------|
+| 생산 대시보드 | `/dashboard/production` | 요약 카드 4종 + 바로가기 5개 |
+| 품목·재고 | `/dashboard/production/items` | 원자재·반제품·완제품·소모품 CRUD, 안전재고 경고 |
+| BOM | `/dashboard/production/bom` | 완제품별 구성 자재 정의, 버전 관리 |
+| 생산 지시서 | `/dashboard/production/orders` | 생산 계획 수립·상태 관리·실적 연동 |
+| 생산 실적 | `/dashboard/production/results` | 완료·불량 수량 등록, 자동 재고 증감 |
+| 입출고 이력 | `/dashboard/production/inventory` | 전체 자재 흐름 이력 조회 |
+
+---
+
 ## [v3.9] - 2026-07-02 | 원가·수익성 분석
 
 ### Backend
