@@ -12,6 +12,7 @@ from routers import auth, ledger, ocr, expense, upload, business, dashboard, ai,
 from routers import hr
 from routers import payroll as payroll_router
 from routers import vendor as vendor_router
+from routers import ar_ap as ar_ap_router
 from sqlalchemy import text
 
 app = FastAPI(title="Accounting Platform API")
@@ -58,6 +59,7 @@ app.include_router(ai.router)
 app.include_router(hr.router)
 app.include_router(payroll_router.router)
 app.include_router(vendor_router.router)
+app.include_router(ar_ap_router.router)
 
 @app.get("/")
 def root():

@@ -4,6 +4,33 @@
 
 ---
 
+## [v3.2] - 2026-07-02 | 미수금 · 미지급금 (AR/AP)
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 신규 모델 | `AccountReceivable` — 거래처FK, 제목, 금액, 수금액, 발행일, 만기일, 상태(미수/일부수금/완료/대손) |
+| 신규 모델 | `AccountPayable` — 거래처FK, 제목, 금액, 지급액, 발행일, 만기일, 상태(미지급/일부지급/완료) |
+| 신규 라우터 | `GET /api/accounting/ar/summary` — 전체건수/금액, 미수잔액, 연체건수·금액 |
+| | `GET/POST /api/accounting/ar/` — 미수금 목록(상태·거래처·연체 필터) / 등록 |
+| | `PUT/DELETE /api/accounting/ar/{id}` |
+| | `GET /api/accounting/ap/summary` — 전체건수/금액, 미지급잔액, 연체 집계 |
+| | `GET/POST /api/accounting/ap/` — 미지급금 목록 / 등록 |
+| | `PUT/DELETE /api/accounting/ap/{id}` |
+| Business 모델 | receivables · payables 관계 추가 |
+
+### Frontend
+| 항목 | 내용 |
+|------|------|
+| 신규 페이지 | `/dashboard/accounting/ar-ap` — AR/AP 통합 페이지 |
+| | 탭 전환: 미수금(AR) / 미지급금(AP) |
+| | 요약 카드: 전체건수, 총금액, 잔액, 연체건수(연체 시 빨간 강조) |
+| | 연체 항목 행 강조 + "⚠ 연체" 배지 표시 |
+| | 상태 인라인 드롭다운 변경 (미수→일부수금→완료) |
+| | 등록/수정 모달: 거래처 연결, 내용, 금액/수금액, 발행일/만기일, 상태, 메모 |
+
+---
+
 ## [v3.1] - 2026-07-02 | 거래처 관리 (Vendor Management)
 
 ### Backend

@@ -30,3 +30,5 @@ class Business(Base):
     leaves            = relationship("Leave", back_populates="business")
     payrolls          = relationship("Payroll", back_populates="business")
     severances        = relationship("Severance", back_populates="business")
+    receivables       = relationship("AccountReceivable", back_populates="business")
+    payables          = relationship("AccountPayable",    back_populates="business")
