@@ -41,3 +41,5 @@ class Employee(Base):
     position   = relationship("Position", back_populates="employees")
     contracts  = relationship("Contract", back_populates="employee")
     leaves     = relationship("Leave", back_populates="employee")
+    payrolls   = relationship("Payroll", back_populates="employee")
+    severances = relationship("Severance", back_populates="employee")

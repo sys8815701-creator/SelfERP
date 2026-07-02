@@ -15,3 +15,4 @@ from models.position import Position
 from models.employee import Employee
 from models.contract import Contract
 from models.leave import Leave
+from models.payroll import Payroll, Severance

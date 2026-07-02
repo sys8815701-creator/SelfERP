@@ -10,6 +10,7 @@ import socketio
 import models
 from routers import auth, ledger, ocr, expense, upload, business, dashboard, ai, oauth
 from routers import hr
+from routers import payroll as payroll_router
 from sqlalchemy import text
 
 app = FastAPI(title="Accounting Platform API")
@@ -54,6 +55,7 @@ app.include_router(business.router)
 app.include_router(dashboard.router)
 app.include_router(ai.router)
 app.include_router(hr.router)
+app.include_router(payroll_router.router)
 
 @app.get("/")
 def root():
