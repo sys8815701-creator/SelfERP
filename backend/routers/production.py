@@ -354,6 +354,66 @@ def cost_analysis(
     return result
 
 
+# ── 재고 실사 ─────────────────────────────────────────────────────────────────
+
+class StockAuditBody(BaseModel):
+    adjustments: List[dict]  # [{item_id, counted_qty, note}]
+    audit_date:  Optional[date] = None
+
+@router.get("/stock-audit")
+def stock_audit(
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    """현재 재고(장부) vs 실사 입력 준비 — 품목 목록 반환"""
+    items = db.query(Item).filter(Item.business_id == business.id, Item.is_active == 1).order_by(Item.item_name).all()
+    return [
+        {
+            "id":            i.id,
+            "item_code":     i.item_code,
+            "item_name":     i.item_name,
+            "item_type":     i.item_type,
+            "unit":          i.unit,
+            "book_qty":      float(i.current_stock),
+            "safety_stock":  float(i.safety_stock),
+        }
+        for i in items
+    ]
+
+@router.post("/stock-audit")
+def apply_stock_audit(
+    body: StockAuditBody,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    """실사 결과 적용 — 장부 수량과 차이나는 품목에 조정 InventoryLog 생성"""
+    from datetime import date as date_cls
+    audit_date = body.audit_date or date_cls.today()
+    applied = []
+    for adj in body.adjustments:
+        item_id    = int(adj.get("item_id", 0))
+        counted    = float(adj.get("counted_qty", 0))
+        note       = str(adj.get("note", "") or "재고 실사 조정")
+        item = db.query(Item).filter(Item.id == item_id, Item.business_id == business.id).first()
+        if not item:
+            continue
+        diff = counted - float(item.current_stock)
+        if abs(diff) < 0.001:
+            applied.append({"item_id": item_id, "item_name": item.item_name, "diff": 0, "action": "skip"})
+            continue
+        log = InventoryLog(
+            business_id=business.id,
+            item_id=item_id,
+            log_type="조정",
+            quantity=diff,
+            log_date=audit_date,
+            note=note,
+        )
+        db.add(log)
+        item.current_stock = counted
+        applied.append({"item_id": item_id, "item_name": item.item_name, "book_qty": float(item.current_stock) - diff, "counted_qty": counted, "diff": diff, "action": "adjusted"})
+    db.commit()
+    return {"applied": applied}
+
+
 # ── 입출고 이력 ───────────────────────────────────────────────────────────────
 
 @router.get("/inventory-logs")
