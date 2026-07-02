@@ -26,6 +26,16 @@ const hrMenu = [
   { label: "급여 정산",    href: "/dashboard/hr/payroll",      icon: "◒" },
 ];
 
+const accountingMenu = [
+  { label: "회계 대시보드",   href: "/dashboard/accounting",              icon: "◆" },
+  { label: "거래처 관리",     href: "/dashboard/accounting/vendors",      icon: "◇" },
+  { label: "미수금·미지급금", href: "/dashboard/accounting/ar-ap",        icon: "◈" },
+  { label: "재무제표",        href: "/dashboard/accounting/statements",   icon: "◉" },
+  { label: "세금계산서",      href: "/dashboard/accounting/tax-invoice",  icon: "◊" },
+  { label: "견적서·청구서",   href: "/dashboard/accounting/estimates",    icon: "◎" },
+  { label: "예산 관리",       href: "/dashboard/accounting/budget",       icon: "◐" },
+];
+
 const insightMenu = [
   { label: "거래처 · 사업장", href: "/dashboard/business",  icon: "♟" },
   { label: "경영 분석",    href: "/dashboard/analytics", icon: "↗" },
@@ -355,6 +365,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {mainMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>인사관리</p>
           {hrMenu.map(item => <MenuItem key={item.href} item={item} />)}
+          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>회계관리</p>
+          {accountingMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>인사이트</p>
           {insightMenu.map(item => <MenuItem key={item.href} item={item} />)}
           <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>설정</p>

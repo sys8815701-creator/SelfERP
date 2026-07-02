@@ -4,6 +4,33 @@
 
 ---
 
+## [v3.1] - 2026-07-02 | 거래처 관리 (Vendor Management)
+
+### Backend
+| 항목 | 내용 |
+|------|------|
+| 모델 확장 | `Vendor` — vendor_type ENUM(매출처/매입처/양방향/기타), ceo_name, contact_name, email, address, industry, bank_name, account_number, bank_holder, credit_limit(여신한도), payment_terms(결제조건일), note, is_active, updated_at 추가 |
+| 스키마 | `VendorCreate` / `VendorUpdate` / `VendorResponse` — 전체 필드 반영 |
+| 신규 라우터 | `GET /api/accounting/vendors/summary` — 전체·활성 거래처 수, 유형별 분포 |
+| | `GET /api/accounting/vendors/` — 거래처 목록 (유형·상태·검색어 필터) |
+| | `GET /api/accounting/vendors/{id}` — 단건 조회 |
+| | `POST /api/accounting/vendors/` — 거래처 등록 |
+| | `PUT /api/accounting/vendors/{id}` — 수정 (거래중지 포함) |
+| | `DELETE /api/accounting/vendors/{id}` — 삭제 |
+
+### Frontend
+| 항목 | 내용 |
+|------|------|
+| 사이드바 | **회계관리** 섹션 추가 (회계대시보드/거래처/미수금미지급금/재무제표/세금계산서/견적서/예산) |
+| 신규 페이지 | `/dashboard/accounting` — 회계 대시보드: 요약 카드(전체/활성/중지), 유형 분포, 바로가기 메뉴 |
+| 신규 페이지 | `/dashboard/accounting/vendors` — 거래처 관리 |
+| | 검색(거래처명/사업자번호/대표자) + 유형 필터 + 상태 필터 |
+| | 테이블: 거래처명, 유형 배지(매출처/매입처/양방향/기타), 사업자번호, 대표자, 연락처, 결제조건, 상태 |
+| | 행 클릭 → 우측 상세 드로어 (기본정보·계좌정보·메모·거래중지/재개·수정·삭제) |
+| | 등록/수정 모달: 2열 그리드, 기본정보/결제조건/계좌정보/메모 섹션 구분 |
+
+---
+
 ## [v1.9] - 2026-07-02 | HR 마무리 · 권한 구분 기반
 
 > v1.8 완료 후 태그만 부여. 권한 체계는 v9.5에서 고도화 예정.
