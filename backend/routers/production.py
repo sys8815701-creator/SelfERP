@@ -311,6 +311,49 @@ def create_result(body: ProductionResultCreate, db: Session = Depends(get_db), b
     return {c.name: getattr(result, c.name) for c in result.__table__.columns}
 
 
+# ── 원가 분석 ─────────────────────────────────────────────────────────────────
+
+@router.get("/cost-analysis")
+def cost_analysis(
+    product_id: Optional[int] = None,
+    db: Session = Depends(get_db), business=Depends(get_current_business),
+):
+    """BOM 기반 제품별 단위 원가 분석"""
+    q = db.query(BOM).filter(BOM.business_id == business.id, BOM.is_active == 1)
+    if product_id:
+        q = q.filter(BOM.product_id == product_id)
+    result = []
+    for bom in q.all():
+        material_lines = []
+        total_material = 0.0
+        for line in bom.lines:
+            if line.item:
+                line_cost = float(line.quantity) * float(line.item.unit_price or 0)
+                material_lines.append({
+                    "item_id":    line.item_id,
+                    "item_name":  line.item.item_name,
+                    "item_code":  line.item.item_code,
+                    "unit":       line.unit or line.item.unit,
+                    "quantity":   float(line.quantity),
+                    "unit_price": float(line.item.unit_price or 0),
+                    "line_cost":  round(line_cost, 2),
+                })
+                total_material += line_cost
+        result.append({
+            "bom_id":              bom.id,
+            "product_id":          bom.product_id,
+            "product_name":        bom.product.item_name if bom.product else None,
+            "product_unit_price":  float(bom.product.unit_price or 0) if bom.product else 0,
+            "version":             bom.version,
+            "material_lines":      material_lines,
+            "total_material_cost": round(total_material, 2),
+            "margin":              round(float(bom.product.unit_price or 0) - total_material, 2) if bom.product else 0,
+            "margin_rate":         round((float(bom.product.unit_price or 0) - total_material) / float(bom.product.unit_price) * 100, 1)
+                                   if bom.product and float(bom.product.unit_price or 0) > 0 else 0,
+        })
+    return result
+
+
 # ── 입출고 이력 ───────────────────────────────────────────────────────────────
 
 @router.get("/inventory-logs")

@@ -43,6 +43,7 @@ const productionMenu = [
   { label: "생산 지시서",    href: "/dashboard/production/orders",       icon: "◉" },
   { label: "생산 실적",      href: "/dashboard/production/results",      icon: "◊" },
   { label: "입출고 이력",    href: "/dashboard/production/inventory",    icon: "◎" },
+  { label: "단위 원가 분석", href: "/dashboard/production/cost",         icon: "◑" },
 ];
 
 const insightMenu = [
