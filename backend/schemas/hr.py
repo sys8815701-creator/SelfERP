@@ -122,3 +122,85 @@ class EmployeeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── Contract ──────────────────────────────────────────────
+class ContractCreate(BaseModel):
+    title: str
+    contract_type: str = "근로계약서"
+    counterparty: Optional[str] = None
+    employee_id: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    amount: int = 0
+    note: Optional[str] = None
+
+
+class ContractUpdate(BaseModel):
+    title: Optional[str] = None
+    contract_type: Optional[str] = None
+    counterparty: Optional[str] = None
+    employee_id: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    amount: Optional[int] = None
+    sign_status: Optional[str] = None
+    note: Optional[str] = None
+
+
+class ContractResponse(BaseModel):
+    id: int
+    business_id: int
+    employee_id: Optional[int]
+    title: str
+    contract_type: str
+    counterparty: Optional[str]
+    start_date: Optional[date]
+    end_date: Optional[date]
+    amount: int
+    sign_status: str
+    note: Optional[str]
+    employee_name: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Leave ──────────────────────────────────────────────────
+class LeaveCreate(BaseModel):
+    employee_id: int
+    leave_type: str
+    start_date: date
+    end_date: date
+    days: float
+    reason: Optional[str] = None
+    note: Optional[str] = None
+
+
+class LeaveUpdate(BaseModel):
+    leave_type: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    days: Optional[float] = None
+    reason: Optional[str] = None
+    status: Optional[str] = None
+    note: Optional[str] = None
+
+
+class LeaveResponse(BaseModel):
+    id: int
+    business_id: int
+    employee_id: int
+    leave_type: str
+    start_date: date
+    end_date: date
+    days: float
+    reason: Optional[str]
+    status: str
+    note: Optional[str]
+    employee_name: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

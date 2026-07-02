@@ -13,3 +13,5 @@ from models.email_verification import EmailVerification
 from models.department import Department
 from models.position import Position
 from models.employee import Employee
+from models.contract import Contract
+from models.leave import Leave

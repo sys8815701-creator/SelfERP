@@ -39,3 +39,5 @@ class Employee(Base):
     business   = relationship("Business", back_populates="employees")
     department = relationship("Department", back_populates="employees")
     position   = relationship("Position", back_populates="employees")
+    contracts  = relationship("Contract", back_populates="employee")
+    leaves     = relationship("Leave", back_populates="employee")
