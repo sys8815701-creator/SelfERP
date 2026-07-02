@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import date, datetime
 from decimal import Decimal
 from core.database import get_db
-from routers.auth import get_current_business
+from core.deps import get_current_business
 from models.ar_ap import AccountReceivable, AccountPayable
 from models.vendor import Vendor
 from schemas.ar_ap import ARCreate, ARUpdate, ARResponse, APCreate, APUpdate, APResponse

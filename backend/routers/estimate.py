@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import date
 from decimal import Decimal
 from core.database import get_db
-from routers.auth import get_current_business
+from core.deps import get_current_business
 from models.estimate import Estimate, EstimateItem
 
 router = APIRouter(prefix="/api/accounting/estimates", tags=["estimates"])

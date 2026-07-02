@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from core.database import get_db
-from routers.auth import get_current_business
+from core.deps import get_current_business
 from models.vendor import Vendor
 from schemas.vendor import VendorCreate, VendorUpdate, VendorResponse
 

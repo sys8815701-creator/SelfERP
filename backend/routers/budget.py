@@ -4,7 +4,7 @@ from sqlalchemy import func, extract
 from pydantic import BaseModel
 from typing import Optional, List
 from core.database import get_db
-from routers.auth import get_current_business
+from core.deps import get_current_business
 from models.budget import BudgetItem
 from models.bank_transaction import BankTransaction
 from decimal import Decimal

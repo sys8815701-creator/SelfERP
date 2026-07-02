@@ -8,7 +8,7 @@ from sqlalchemy import func, extract
 from typing import Optional
 from datetime import date
 from core.database import get_db
-from routers.auth import get_current_business
+from core.deps import get_current_business
 from models.tax_invoice import TaxInvoice
 from models.bank_transaction import BankTransaction
 from models.vendor import Vendor

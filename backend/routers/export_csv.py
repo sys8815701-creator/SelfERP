@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from auth import get_current_business
+from core.deps import get_current_business
 from models.business import Business
 from models.journal import Journal, JournalLine
 from models.account import Account
