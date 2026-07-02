@@ -9,3 +9,9 @@ passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
 httpx
+python-socketio
+openai
+langchain-openai
+langchain-core
+pandas
+aiofiles
