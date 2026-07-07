@@ -5,12 +5,14 @@ from core.database import get_db
 from core.deps import get_current_user
 from models.user import User
 from models.business import Business
+from models.employee import Employee
 from models.vendor import Vendor
+from models.business_join_request import BusinessJoinRequest
 from schemas.business import BusinessCreate, BusinessResponse
 from schemas.vendor import VendorCreate, VendorResponse
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import date as DateType
+from datetime import date as DateType, datetime
 
 class BusinessUpdate(BaseModel):
     business_name:   Optional[str] = None
@@ -26,6 +28,167 @@ class BankInfoUpdate(BaseModel):
     bank_holder:    str
 
 router = APIRouter(prefix="/api/business", tags=["business"])
+
+
+class JoinRequestBody(BaseModel):
+    business_number: str
+
+
+class JoinRejectBody(BaseModel):
+    reject_reason: Optional[str] = None
+
+
+# ── 사업장 가입 요청 생성 (직원이 사업장에 가입 요청) ──────────────────────
+@router.post("/join-request")
+def create_join_request(
+    data: JoinRequestBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    raw = data.business_number.replace("-", "")
+    fmt = f"{raw[:3]}-{raw[3:5]}-{raw[5:]}" if len(raw) == 10 else raw
+    business = db.query(Business).filter(
+        (Business.business_number == raw) | (Business.business_number == fmt)
+    ).first()
+    if not business:
+        raise HTTPException(status_code=404, detail="해당 사업자번호의 사업장을 찾을 수 없습니다.")
+
+    # 이미 소속된 경우 방지
+    already = (
+        db.query(Employee)
+        .filter(Employee.business_id == business.id)
+        .filter((Employee.user_id == current_user.id) | (Employee.email == current_user.email))
+        .first()
+    )
+    if already:
+        raise HTTPException(status_code=400, detail="이미 해당 사업장에 소속되어 있습니다.")
+
+    # 중복 요청 방지
+    existing = (
+        db.query(BusinessJoinRequest)
+        .filter(BusinessJoinRequest.user_id == current_user.id)
+        .filter(BusinessJoinRequest.business_id == business.id)
+        .filter(BusinessJoinRequest.status == "pending")
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="이미 가입 요청 중입니다.")
+
+    req = BusinessJoinRequest(user_id=current_user.id, business_id=business.id)
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return {"message": "가입 요청이 접수되었습니다.", "business_name": business.business_name, "request_id": req.id}
+
+
+# ── 사업장 가입 요청 목록 조회 (사업장 관리자) ────────────────────────────────
+@router.get("/join-requests")
+def get_join_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    biz_ids = [b.id for b in db.query(Business).filter(Business.user_id == current_user.id).all()]
+    if not biz_ids:
+        return []
+    requests = (
+        db.query(BusinessJoinRequest)
+        .filter(BusinessJoinRequest.business_id.in_(biz_ids))
+        .filter(BusinessJoinRequest.status == "pending")
+        .order_by(BusinessJoinRequest.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id":            r.id,
+            "user_id":       r.user_id,
+            "user_name":     r.user.name,
+            "user_email":    r.user.email,
+            "business_id":   r.business_id,
+            "business_name": r.business.business_name,
+            "status":        r.status,
+            "created_at":    r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in requests
+    ]
+
+
+# ── 가입 요청 승인 ──────────────────────────────────────────────────────────
+@router.patch("/join-requests/{req_id}/approve")
+def approve_join_request(
+    req_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = db.query(BusinessJoinRequest).filter(BusinessJoinRequest.id == req_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="요청을 찾을 수 없습니다.")
+
+    business = db.query(Business).filter(
+        Business.id == req.business_id,
+        Business.user_id == current_user.id,
+    ).first()
+    if not business:
+        raise HTTPException(status_code=403, detail="이 사업장의 관리자만 승인할 수 있습니다.")
+
+    # 유저 활성화 (가입 후 대기 중인 경우)
+    user = db.query(User).filter(User.id == req.user_id).first()
+    if user and user.is_active == 0:
+        user.is_active = 1
+
+    # 직원 레코드 연결 or 신규 생성
+    if user:
+        from datetime import date
+        emp = (
+            db.query(Employee)
+            .filter(Employee.business_id == req.business_id)
+            .filter(Employee.email == user.email)
+            .first()
+        )
+        if emp:
+            if not emp.user_id:
+                emp.user_id = user.id
+        else:
+            # Employee 레코드가 없으면 최소 정보로 신규 생성
+            new_emp = Employee(
+                business_id=req.business_id,
+                user_id=user.id,
+                name=user.name,
+                email=user.email,
+                hire_date=date.today(),
+            )
+            db.add(new_emp)
+
+    req.status      = "approved"
+    req.reviewed_at = datetime.utcnow()
+    db.commit()
+    return {"message": "승인되었습니다."}
+
+
+# ── 가입 요청 거절 ──────────────────────────────────────────────────────────
+@router.patch("/join-requests/{req_id}/reject")
+def reject_join_request(
+    req_id: int,
+    data: JoinRejectBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = db.query(BusinessJoinRequest).filter(BusinessJoinRequest.id == req_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="요청을 찾을 수 없습니다.")
+
+    business = db.query(Business).filter(
+        Business.id == req.business_id,
+        Business.user_id == current_user.id,
+    ).first()
+    if not business:
+        raise HTTPException(status_code=403, detail="이 사업장의 관리자만 거절할 수 있습니다.")
+
+    req.status        = "rejected"
+    req.reject_reason = data.reject_reason or "거절되었습니다."
+    req.reviewed_at   = datetime.utcnow()
+    db.commit()
+    return {"message": "거절되었습니다."}
+
 
 # 사업장 등록
 @router.post("/", response_model=BusinessResponse)
@@ -44,13 +207,54 @@ def create_business(
     db.refresh(business)
     return business
 
-# 사업장 목록 조회 (현재 사용자 소유만)
+# 사업장 목록 조회 (소유자 또는 소속 직원)
 @router.get("/", response_model=List[BusinessResponse])
 def get_businesses(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return db.query(Business).filter(Business.user_id == current_user.id).all()
+    seen_ids: set = set()
+    result: list = []
+
+    # 1. 소유 사업장
+    owned = db.query(Business).filter(Business.user_id == current_user.id).all()
+    for b in owned:
+        seen_ids.add(b.id)
+        result.append(b)
+
+    # 2. Employee 레코드로 연결된 사업장 (user_id 또는 이메일)
+    emps = (
+        db.query(Employee)
+        .filter(
+            (Employee.user_id == current_user.id) |
+            (Employee.email == current_user.email)
+        )
+        .all()
+    )
+    for emp in emps:
+        if emp.business_id not in seen_ids:
+            biz = db.query(Business).filter(Business.id == emp.business_id).first()
+            if biz:
+                seen_ids.add(biz.id)
+                result.append(biz)
+
+    # 3. 승인된 가입 요청으로 연결된 사업장 (Employee 레코드 생성 전 fallback)
+    approved_reqs = (
+        db.query(BusinessJoinRequest)
+        .filter(
+            BusinessJoinRequest.user_id == current_user.id,
+            BusinessJoinRequest.status == "approved",
+        )
+        .all()
+    )
+    for req in approved_reqs:
+        if req.business_id not in seen_ids:
+            biz = db.query(Business).filter(Business.id == req.business_id).first()
+            if biz:
+                seen_ids.add(biz.id)
+                result.append(biz)
+
+    return result
 
 # 사업장 단건 조회
 @router.get("/{business_id}", response_model=BusinessResponse)
@@ -138,7 +342,10 @@ def create_vendor(business_id: int, data: VendorCreate, db: Session = Depends(ge
 # 거래처 목록 조회
 @router.get("/{business_id}/vendors", response_model=List[VendorResponse])
 def get_vendors(business_id: int, db: Session = Depends(get_db)):
-    return db.query(Vendor).filter(Vendor.business_id == business_id).all()
+    try:
+        return db.query(Vendor).filter(Vendor.business_id == business_id).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 거래처 수정
 @router.patch("/{business_id}/vendors/{vendor_id}", response_model=VendorResponse)

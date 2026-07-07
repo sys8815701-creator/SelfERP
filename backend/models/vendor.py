@@ -22,8 +22,9 @@ class Vendor(Base):
     bank_holder     = Column(String(50))
     credit_limit    = Column(Integer, default=0)   # 여신한도
     payment_terms   = Column(Integer, default=30)  # 결제조건(일)
-    note            = Column(Text)
-    is_active       = Column(Integer, default=1)   # 0=거래중지
+    note                 = Column(Text)
+    consultation_history = Column(Text)
+    is_active            = Column(Integer, default=1)   # 0=거래중지
     created_at      = Column(DateTime, default=datetime.utcnow)
     updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -26,10 +26,10 @@ export default function QuickJournalModal({ onClose, onSaved }: Props) {
   const cats = txType === "income" ? INCOME_CATS : EXPENSE_CATS;
 
   const handleSubmit = async () => {
-    if (!description.trim()) { setError("거래처/내용을 입력해 주세요."); return; }
+    if (!description.trim()) { setError("거래처/내용을 입력해 주세요"); return; }
     const amt = parseFloat(amount.replace(/,/g, ""));
-    if (!amt || amt <= 0) { setError("금액을 올바르게 입력해 주세요."); return; }
-    if (!txDate) { setError("날짜를 선택해 주세요."); return; }
+    if (!amt || amt <= 0) { setError("금액을 올바르게 입력해 주세요"); return; }
+    if (!txDate) { setError("날짜를 선택해 주세요"); return; }
     setError("");
     setLoading(true);
     try {
@@ -49,7 +49,7 @@ export default function QuickJournalModal({ onClose, onSaved }: Props) {
       onSaved();
       onClose();
     } catch {
-      setError("등록 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      setError("등록 중 오류가 발생했습니다. 다시 시도해 주세요");
     } finally {
       setLoading(false);
     }

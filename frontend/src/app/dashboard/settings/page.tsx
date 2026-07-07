@@ -58,7 +58,7 @@ export default function SettingsPage() {
 
   const exportCSV = async () => {
     if (!isPro) {
-      setModal({ title: "PRO 플랜 전용", message: "CSV 내보내기 기능은 PRO 플랜에서 제공됩니다.\n지금 업그레이드하고 데이터를 활용하세요.", variant: "info", showCancel: true, confirmLabel: "PRO 가입하기", onConfirm: () => router.push("/dashboard/pro") });
+      setModal({ title: "PRO 플랜 전용", message: "CSV 내보내기 기능은 PRO 플랜에서 제공됩니다.\n지금 업그레이드하고 데이터를 활용하세요", variant: "info", showCancel: true, confirmLabel: "PRO 가입하기", onConfirm: () => router.push("/dashboard/pro") });
       return;
     }
     try {
@@ -70,7 +70,7 @@ export default function SettingsPage() {
       a.href = URL.createObjectURL(blob);
       a.download = `bookkeep_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
-    } catch { setModal({ message: "내보내기에 실패했습니다.", variant: "error" }); }
+    } catch { setModal({ message: "내보내기에 실패했습니다", variant: "error" }); }
   };
 
   const handleLogout = () => {
@@ -81,7 +81,7 @@ export default function SettingsPage() {
   };
 
   const handleWithdraw = async () => {
-    if (!withdrawPw) { setWithdrawErr("비밀번호를 입력해 주세요."); return; }
+    if (!withdrawPw) { setWithdrawErr("비밀번호를 입력해 주세요"); return; }
     setWithdrawing(true); setWithdrawErr("");
     try {
       await api.delete("/api/auth/me", { data: { password: withdrawPw } });
@@ -90,7 +90,7 @@ export default function SettingsPage() {
        "bk-vat-checklist", "notif_settings", "selectedMonth"].forEach(k => localStorage.removeItem(k));
       router.push("/login");
     } catch (e: any) {
-      setWithdrawErr(e?.response?.data?.detail ?? "탈퇴 처리 중 오류가 발생했습니다.");
+      setWithdrawErr(e?.response?.data?.detail ?? "탈퇴 처리 중 오류가 발생했습니다");
       setWithdrawing(false);
     }
   };
@@ -135,7 +135,7 @@ export default function SettingsPage() {
             [
               { key: "sales",   label: "매출 변동 알림",       desc: "전월 대비 매출이 크게 변동되면 알림을 받습니다" },
               { key: "expense", label: "경비 승인 대기 알림",  desc: "미처리 경비 정산 건이 있을 때 알림을 받습니다" },
-              { key: "vat",     label: "부가세 신고 마감 알림", desc: "부가세 신고 마감 30일·7일 전 알림을 받습니다" },
+              { key: "vat",     label: "부가세 신고 마감 알림", desc: "부가세 신고 마감 30일 · 7일 전 알림을 받습니다" },
               { key: "ai",      label: "AI 분석 리포트",       desc: "매주 AI가 경영 현황 분석 리포트를 전송합니다" },
             ] as Array<{ key: keyof Notif; label: string; desc: string }>
           ).map(({ key, label, desc }) => (
@@ -156,7 +156,7 @@ export default function SettingsPage() {
         <div style={{ padding: "12px 14px", backgroundColor: "var(--bg-surface-2)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>테마</p>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>헤더 우측의 ☀/🌙 버튼으로 다크·라이트 모드를 전환할 수 있습니다</p>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>헤더 우측의 ☀/🌙 버튼으로 다크 · 라이트 모드를 전환할 수 있습니다</p>
           </div>
           <span style={{ fontSize: "22px" }}>☀️/🌙</span>
         </div>
@@ -205,7 +205,7 @@ export default function SettingsPage() {
               <p style={{ fontSize: "17px", fontWeight: 800, color: "var(--text-primary)" }}>정말 탈퇴하시겠습니까?</p>
               <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "6px", textAlign: "center", lineHeight: 1.6 }}>
                 계정 및 모든 데이터(거래 내역, 장부, 영수증 등)가<br />
-                <strong style={{ color: "#FFBE50" }}>즉시 삭제되며 복구할 수 없습니다.</strong>
+                <strong style={{ color: "#FFBE50" }}>즉시 삭제되며 복구할 수 없습니다</strong>
               </p>
             </div>
 

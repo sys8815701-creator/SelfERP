@@ -135,14 +135,14 @@ export default function OcrPage() {
       setRegisterDone(id);
       fetchAll();
     } catch (e: any) {
-      setModal({ title: "장부 등록 실패", message: e?.response?.data?.detail ?? "LLM 서비스를 확인해 주세요.", variant: "error" });
+      setModal({ title: "장부 등록 실패", message: e?.response?.data?.detail ?? "LLM 서비스를 확인해 주세요", variant: "error" });
     } finally { setRegistering(false); }
   };
 
   const deleteReceipt = (id: number) => {
     setModal({
       title: "인식 내역 삭제",
-      message: "이 영수증 인식 내역을 삭제하시겠습니까?\n삭제하면 복구할 수 없습니다.",
+      message: "이 영수증 인식 내역을 삭제하시겠습니까?\n삭제하면 복구할 수 없습니다",
       variant: "danger",
       showCancel: true,
       confirmLabel: "삭제",
@@ -267,8 +267,8 @@ export default function OcrPage() {
                   </div>
                 ) : (
                   <div style={{ ...fieldBox, textAlign: "center" }}>
-                    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>인식된 구조화 정보가 없습니다.</p>
-                    <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginTop: "4px" }}>원문 텍스트가 불명확하거나 지원하지 않는 형식일 수 있습니다.</p>
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>인식된 구조화 정보가 없습니다</p>
+                    <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginTop: "4px" }}>원문 텍스트가 불명확하거나 지원하지 않는 형식일 수 있습니다</p>
                   </div>
                 );
               })()}
@@ -368,7 +368,7 @@ export default function OcrPage() {
                       </div>
                     ) : (
                       <div style={{ padding: "12px", backgroundColor: "var(--bg-surface-2)", borderRadius: "8px", marginTop: "12px", textAlign: "center" }}>
-                        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>구조화된 정보를 추출할 수 없습니다.</p>
+                        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>구조화된 정보를 추출할 수 없습니다</p>
                       </div>
                     )}
                     <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>

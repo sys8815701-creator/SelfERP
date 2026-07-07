@@ -25,3 +25,8 @@ from models.budget import BudgetItem
 from models.production import Item, BOM, BOMLine, ProductionOrder, ProductionResult, InventoryLog
 # 유통 모듈
 from models.distribution import Vehicle, SalesOrder, SalesOrderItem, Delivery, DeliveryReturn
+# 관리자 승인
+from models.pending_registration import PendingRegistration
+from models.business_join_request import BusinessJoinRequest
+# 시스템 설정
+from models.system_setting import SystemSetting

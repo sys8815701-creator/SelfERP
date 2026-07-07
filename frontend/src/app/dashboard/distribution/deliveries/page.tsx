@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
 
-const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-  대기:  { bg: "#F3F4F6", color: "#6B7280" },
-  배송중: { bg: "#DBEAFE", color: "#1D4ED8" },
-  완료:  { bg: "#DCFCE7", color: "#15803D" },
-  실패:  { bg: "#FEF2F2", color: "#DC2626" },
-  취소:  { bg: "#FEF2F2", color: "#DC2626" },
+const STATUS_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  대기:  { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" },
+  배송중: { backgroundColor: "rgba(29,78,216,0.12)",  color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.40)" },
+  완료:  { backgroundColor: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
+  실패:  { backgroundColor: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
+  취소:  { backgroundColor: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
 };
 
 function fmt(v: any) { return parseFloat(String(v ?? 0)).toLocaleString("ko-KR"); }
@@ -24,6 +25,7 @@ export default function DeliveriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm]           = useState<any>({ sales_order_id: "", vehicle_id: "", delivery_no: "", scheduled_date: "", destination: "", recipient: "", recipient_phone: "", delivery_fee: "", note: "" });
   const [saving, setSaving]       = useState(false);
+  const [modal, setModal]         = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
   const h = () => ({ "X-Business-Id": bizId() });
@@ -68,21 +70,23 @@ export default function DeliveriesPage() {
     await load();
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("배송 지시를 삭제하시겠습니까?")) return;
-    await api.delete(`/api/distribution/deliveries/${id}`, { headers: h() });
-    await load();
+  const handleDelete = (id: number) => {
+    setModal({ title: "삭제 확인", message: "배송 지시를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        await api.delete(`/api/distribution/deliveries/${id}`, { headers: h() });
+        await load();
+      } });
   };
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>배송 지시</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>배송 계획을 수립하고 실시간 상태를 관리합니다. · {deliveries.length}건</p>
         </div>
         <button onClick={() => { setForm({ sales_order_id: "", vehicle_id: "", delivery_no: "", scheduled_date: new Date().toISOString().split("T")[0], destination: "", recipient: "", recipient_phone: "", delivery_fee: "", note: "" }); setShowModal(true); }}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 배송 지시
         </button>
       </div>
@@ -111,9 +115,9 @@ export default function DeliveriesPage() {
           </thead>
           <tbody>
             {loading ? <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
-            : deliveries.length === 0 ? <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 배송 지시가 없습니다.</td></tr>
+            : deliveries.length === 0 ? <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 배송 지시가 없습니다</td></tr>
             : deliveries.map((d, i) => {
-              const sc = STATUS_COLOR[d.status] || { bg: "#F3F4F6", color: "#374151" };
+              const sc = STATUS_COLOR[d.status] || { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" };
               return (
                 <tr key={d.id} style={{ borderBottom: i < deliveries.length - 1 ? "1px solid var(--border-subtle)" : "none" }}
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--bg-surface-2)")}
@@ -127,12 +131,12 @@ export default function DeliveriesPage() {
                   <td style={{ padding: "12px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{parseFloat(d.delivery_fee || 0) > 0 ? `₩${fmt(d.delivery_fee)}` : "—"}</td>
                   <td style={{ padding: "12px 14px" }}>
                     <select value={d.status} onChange={e => handleStatusChange(d.id, e.target.value)}
-                      style={{ ...sc, padding: "4px 8px", borderRadius: "6px", border: "none", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
+                      style={{ ...sc, padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
                       {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </td>
                   <td style={{ padding: "12px 14px" }}>
-                    <button onClick={() => handleDelete(d.id)} style={{ fontSize: "11px", color: "#DC2626", background: "none", border: "1px solid #FCA5A5", borderRadius: "6px", padding: "3px 7px", cursor: "pointer" }}>삭제</button>
+                    <button onClick={() => handleDelete(d.id)} style={{ fontSize: "11px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "3px 7px", cursor: "pointer" }}>삭제</button>
                   </td>
                 </tr>
               );
@@ -140,6 +144,8 @@ export default function DeliveriesPage() {
           </tbody>
         </table>
       </div>
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {/* 등록 모달 */}
       {showModal && (
@@ -197,7 +203,7 @@ export default function DeliveriesPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={handleSave} disabled={saving}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "지시"}
               </button>
               <button onClick={() => setShowModal(false)} style={{ padding: "11px 20px", backgroundColor: "var(--bg-surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>취소</button>

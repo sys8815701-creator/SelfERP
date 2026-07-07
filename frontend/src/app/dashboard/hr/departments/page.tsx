@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
 
 interface Department {
   id: number;
@@ -41,6 +42,7 @@ export default function DepartmentsPage() {
   const [posForm, setPosForm]   = useState({ ...emptyPos });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [modal, setModal] = useState<ModalConfig | null>(null);
 
   const bizHeaders = () => {
     const id = localStorage.getItem("activeBizId");
@@ -70,7 +72,7 @@ export default function DepartmentsPage() {
     setError(""); setShowDeptModal(true);
   };
   const saveDept = async () => {
-    if (!deptForm.name.trim()) { setError("부서명을 입력하세요."); return; }
+    if (!deptForm.name.trim()) { setError("부서명을 입력하세요"); return; }
     setSaving(true); setError("");
     try {
       const payload = { name: deptForm.name.trim(), code: deptForm.code || null, description: deptForm.description || null, parent_id: deptForm.parent_id };
@@ -79,14 +81,16 @@ export default function DepartmentsPage() {
       setShowDeptModal(false);
       fetchAll();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || "저장에 실패했습니다.");
+      setError(e?.response?.data?.detail || "저장에 실패했습니다");
     }
     setSaving(false);
   };
-  const deleteDept = async (id: number) => {
-    if (!confirm("부서를 삭제하시겠습니까?")) return;
-    try { await api.delete(`/api/hr/departments/${id}`, { headers: bizHeaders() }); fetchAll(); }
-    catch (e: any) { alert(e?.response?.data?.detail || "삭제에 실패했습니다."); }
+  const deleteDept = (id: number) => {
+    setModal({ title: "삭제 확인", message: "부서를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try { await api.delete(`/api/hr/departments/${id}`, { headers: bizHeaders() }); fetchAll(); }
+        catch (e: any) { setModal({ message: e?.response?.data?.detail || "삭제에 실패했습니다", variant: "error" }); }
+      } });
   };
 
   // ── 직급 CRUD ────────────────────────────────────
@@ -97,7 +101,7 @@ export default function DepartmentsPage() {
     setError(""); setShowPosModal(true);
   };
   const savePos = async () => {
-    if (!posForm.name.trim()) { setError("직급명을 입력하세요."); return; }
+    if (!posForm.name.trim()) { setError("직급명을 입력하세요"); return; }
     setSaving(true); setError("");
     try {
       const payload = { name: posForm.name.trim(), level: posForm.level, description: posForm.description || null };
@@ -106,14 +110,16 @@ export default function DepartmentsPage() {
       setShowPosModal(false);
       fetchAll();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || "저장에 실패했습니다.");
+      setError(e?.response?.data?.detail || "저장에 실패했습니다");
     }
     setSaving(false);
   };
-  const deletePos = async (id: number) => {
-    if (!confirm("직급을 삭제하시겠습니까?")) return;
-    try { await api.delete(`/api/hr/positions/${id}`, { headers: bizHeaders() }); fetchAll(); }
-    catch (e: any) { alert(e?.response?.data?.detail || "삭제에 실패했습니다."); }
+  const deletePos = (id: number) => {
+    setModal({ title: "삭제 확인", message: "직급을 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try { await api.delete(`/api/hr/positions/${id}`, { headers: bizHeaders() }); fetchAll(); }
+        catch (e: any) { setModal({ message: e?.response?.data?.detail || "삭제에 실패했습니다", variant: "error" }); }
+      } });
   };
 
   const inputStyle: React.CSSProperties = {
@@ -126,21 +132,21 @@ export default function DepartmentsPage() {
   };
 
   return (
-    <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 헤더 */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>부서 · 직급 관리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>조직 구조를 설정하세요</p>
         </div>
         <button onClick={tab === "dept" ? openDeptCreate : openPosCreate}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + {tab === "dept" ? "부서" : "직급"} 추가
         </button>
       </div>
 
       {/* 탭 */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "20px", backgroundColor: "var(--bg-surface-2)", padding: "4px", borderRadius: "10px", width: "fit-content" }}>
+      <div style={{ display: "flex", gap: "4px", backgroundColor: "var(--bg-surface-2)", padding: "4px", borderRadius: "10px", width: "fit-content" }}>
         {(["dept", "pos"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: "7px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 600, transition: "all 0.15s", backgroundColor: tab === t ? "var(--bg-surface)" : "transparent", color: tab === t ? "var(--text-primary)" : "var(--text-muted)", boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.1)" : "none" }}>
@@ -154,15 +160,15 @@ export default function DepartmentsPage() {
         loading ? (
           <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</div>
         ) : depts.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
             <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◎</p>
-            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 부서가 없습니다.</p>
-            <button onClick={openDeptCreate} style={{ marginTop: "16px", fontSize: "13px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
+            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 부서가 없습니다</p>
+            <button onClick={openDeptCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
               첫 번째 부서 추가
             </button>
           </div>
         ) : (
-          <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
+          <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", boxShadow: "var(--shadow)", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -219,15 +225,15 @@ export default function DepartmentsPage() {
         loading ? (
           <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</div>
         ) : positions.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
             <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◑</p>
-            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 직급이 없습니다.</p>
-            <button onClick={openPosCreate} style={{ marginTop: "16px", fontSize: "13px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
+            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 직급이 없습니다</p>
+            <button onClick={openPosCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
               첫 번째 직급 추가
             </button>
           </div>
         ) : (
-          <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
+          <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", boxShadow: "var(--shadow)", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -284,6 +290,8 @@ export default function DepartmentsPage() {
         )
       )}
 
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
+
       {/* 부서 모달 */}
       {showDeptModal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -322,7 +330,7 @@ export default function DepartmentsPage() {
                 취소
               </button>
               <button onClick={saveDept} disabled={saving}
-                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "var(--accent)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent-text)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
                 {saving ? "저장 중..." : "저장"}
               </button>
             </div>
@@ -359,7 +367,7 @@ export default function DepartmentsPage() {
                 취소
               </button>
               <button onClick={savePos} disabled={saving}
-                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "var(--accent)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent-text)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
                 {saving ? "저장 중..." : "저장"}
               </button>
             </div>

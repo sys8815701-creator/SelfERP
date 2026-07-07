@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
 interface Employee { id: number; name: string; }
 interface Contract {
@@ -19,11 +21,11 @@ interface Contract {
   created_at: string;
 }
 
-const SIGN_STATUS_COLORS: Record<string, { text: string; bg: string }> = {
-  작성중:   { text: "#6B7280", bg: "#6B728018" },
-  서명요청: { text: "#F59E0B", bg: "#F59E0B18" },
-  서명완료: { text: "#22C55E", bg: "#22C55E18" },
-  거절:     { text: "#EF4444", bg: "#EF444418" },
+const SIGN_STATUS_COLORS: Record<string, { text: string; bg: string; border: string }> = {
+  작성중:   { text: "#6B7280", bg: "rgba(107,114,128,0.10)", border: "1px solid rgba(107,114,128,0.30)" },
+  서명요청: { text: "#F59E0B", bg: "rgba(245,158,11,0.12)",  border: "1px solid rgba(245,158,11,0.40)" },
+  서명완료: { text: "#22C55E", bg: "rgba(34,197,94,0.12)",   border: "1px solid rgba(34,197,94,0.40)" },
+  거절:     { text: "#EF4444", bg: "rgba(239,68,68,0.12)",   border: "1px solid rgba(239,68,68,0.40)" },
 };
 
 const CONTRACT_TYPES = ["근로계약서", "거래처계약서", "인사계약서", "기타"];
@@ -34,6 +36,7 @@ const EMPTY_FORM = {
 };
 
 export default function ContractsPage() {
+  const role = useRole();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +49,7 @@ export default function ContractsPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [modal, setModal] = useState<ModalConfig | null>(null);
 
   const bizHeaders = () => {
     const id = localStorage.getItem("activeBizId");
@@ -84,7 +88,7 @@ export default function ContractsPage() {
   };
 
   const saveContract = async () => {
-    if (!form.title.trim()) { setError("계약서 제목을 입력하세요."); return; }
+    if (!form.title.trim()) { setError("계약서 제목을 입력하세요"); return; }
     setSaving(true); setError("");
     try {
       const payload = { ...form, employee_id: form.employee_id ? Number(form.employee_id) : null, start_date: form.start_date || null, end_date: form.end_date || null };
@@ -97,32 +101,36 @@ export default function ContractsPage() {
 
   const updateSignStatus = async (id: number, sign_status: string) => {
     try { await api.put(`/api/hr/contracts/${id}`, { sign_status }, { headers: bizHeaders() }); fetchAll(); }
-    catch { alert("상태 변경 실패"); }
+    catch { setModal({ message: "상태 변경 실패", variant: "error" }); }
   };
 
-  const deleteContract = async (id: number) => {
-    if (!confirm("계약서를 삭제하시겠습니까?")) return;
-    try { await api.delete(`/api/hr/contracts/${id}`, { headers: bizHeaders() }); fetchAll(); }
-    catch { alert("삭제 실패"); }
+  const deleteContract = (id: number) => {
+    setModal({ title: "삭제 확인", message: "계약서를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try { await api.delete(`/api/hr/contracts/${id}`, { headers: bizHeaders() }); fetchAll(); }
+        catch { setModal({ message: "삭제 실패", variant: "error" }); }
+      } });
   };
 
   const inputStyle: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1px solid var(--border)", backgroundColor: "var(--bg-surface-2)", color: "var(--text-primary)", fontSize: "13px", outline: "none", boxSizing: "border-box" };
   const labelStyle: React.CSSProperties = { fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "5px", display: "block" };
 
   return (
-    <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>계약서 관리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>근로계약서 · 거래처계약서 · 인사계약서</p>
         </div>
-        <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 계약서 추가
-        </button>
+        {canWrite(role) && (
+          <button onClick={openCreate}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 계약서 추가
+          </button>
+        )}
       </div>
 
-      <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
+      <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)", padding: "14px 18px", display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="제목 · 상대방 · 직원 검색"
           style={{ ...inputStyle, width: "220px" }} />
         <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ ...inputStyle, width: "150px" }}>
@@ -136,15 +144,18 @@ export default function ContractsPage() {
         <span style={{ fontSize: "12px", color: "var(--text-muted)", alignSelf: "center" }}>총 {filtered.length}건</span>
       </div>
 
-      {loading ? (
+      <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)", padding: "22px" }}>
+        {loading ? (
         <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "80px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "200px", textAlign: "center", padding: "40px 20px" }}>
           <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◑</p>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 계약서가 없습니다.</p>
-          <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
-            첫 번째 계약서 추가
-          </button>
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 계약서가 없습니다</p>
+          {canWrite(role) && (
+            <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
+              첫 번째 계약서 추가
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -152,12 +163,12 @@ export default function ContractsPage() {
             const sc = SIGN_STATUS_COLORS[c.sign_status] || SIGN_STATUS_COLORS["작성중"];
             const isExpiring = c.end_date && new Date(c.end_date) < new Date(Date.now() + 30 * 86400000);
             return (
-              <div key={c.id} style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "18px 20px", display: "flex", alignItems: "center", gap: "16px" }}>
+              <div key={c.id} style={{ backgroundColor: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "16px" }}>
                 <div style={{ width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "var(--accent-light)", border: "1px solid rgba(255,190,80,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>◑</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                     <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</p>
-                    {isExpiring && <span style={{ fontSize: "10px", fontWeight: 700, color: "#EF4444", backgroundColor: "#EF444415", padding: "2px 8px", borderRadius: "99px", flexShrink: 0 }}>만료 임박</span>}
+                    {isExpiring && <span style={{ fontSize: "10px", fontWeight: 700, color: "#EF4444", backgroundColor: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.40)", padding: "2px 8px", borderRadius: "99px", flexShrink: 0 }}>만료 임박</span>}
                   </div>
                   <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                     <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{c.contract_type}</span>
@@ -168,18 +179,31 @@ export default function ContractsPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-                  <select value={c.sign_status} onChange={e => updateSignStatus(c.id, e.target.value)}
-                    style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: "none", borderRadius: "99px", padding: "4px 10px", cursor: "pointer", outline: "none" }}>
-                    {["작성중", "서명요청", "서명완료", "거절"].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <button onClick={() => openEdit(c)} style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>수정</button>
-                  <button onClick={() => deleteContract(c.id)} style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.3)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>삭제</button>
+                  {canWrite(role) ? (
+                    <select value={c.sign_status} onChange={e => updateSignStatus(c.id, e.target.value)}
+                      style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: sc.border, borderRadius: "99px", padding: "4px 10px", cursor: "pointer", outline: "none" }}>
+                      {["작성중", "서명요청", "서명완료", "거절"].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  ) : (
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: sc.border, borderRadius: "99px", padding: "4px 10px" }}>
+                      {c.sign_status}
+                    </span>
+                  )}
+                  {canWrite(role) && (
+                    <button onClick={() => openEdit(c)} style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>수정</button>
+                  )}
+                  {canDelete(role) && (
+                    <button onClick={() => deleteContract(c.id)} style={{ padding: "5px 10px", borderRadius: "7px", backgroundColor: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.40)", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>삭제</button>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+      </div>
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {showModal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
@@ -212,7 +236,7 @@ export default function ContractsPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
               <button onClick={() => setShowModal(false)} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>취소</button>
-              <button onClick={saveContract} disabled={saving} style={{ flex: 2, padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "var(--accent)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent-text)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>{saving ? "저장 중..." : "저장"}</button>
+              <button onClick={saveContract} disabled={saving} style={{ flex: 2, padding: "10px", borderRadius: "8px", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>{saving ? "저장 중..." : "저장"}</button>
             </div>
           </div>
         </div>

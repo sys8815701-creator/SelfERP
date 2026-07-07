@@ -35,17 +35,17 @@ export default function HRPage() {
   const shortcuts = [
     { label: "직원 관리",  desc: "직원 정보 조회 및 등록",    icon: "◉", href: "/dashboard/hr/employees" },
     { label: "부서 · 직급", desc: "조직 구조 설정",           icon: "◎", href: "/dashboard/hr/departments" },
-    { label: "계약서 관리", desc: "근로·거래처 계약서",       icon: "◑", href: "/dashboard/hr/contracts" },
-    { label: "휴가 관리",  desc: "연차·반차 신청 및 승인",    icon: "◐", href: "/dashboard/hr/leave" },
-    { label: "급여 정산",  desc: "급여·가불·퇴직금 관리",     icon: "◒", href: "/dashboard/hr/payroll" },
+    { label: "계약서 관리", desc: "근로 · 거래처 계약서",       icon: "◑", href: "/dashboard/hr/contracts" },
+    { label: "휴가 관리",  desc: "연차 · 반차 신청 및 승인",    icon: "◐", href: "/dashboard/hr/leave" },
+    { label: "급여 정산",  desc: "급여 · 가불 · 퇴직금 관리",     icon: "◒", href: "/dashboard/hr/payroll" },
   ];
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       {/* 헤더 */}
       <div style={{ marginBottom: "28px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>인사 관리</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>직원·부서·계약·급여 통합 관리</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>직원 · 부서 · 계약 · 급여 통합 관리</p>
       </div>
 
       {/* 요약 카드 */}
@@ -79,9 +79,9 @@ export default function HRPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {shortcuts.map(s => (
               <div key={s.label} onClick={() => router.push(s.href)}
-                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", borderRadius: "10px", cursor: "pointer", border: "1px solid transparent", transition: "all 0.15s" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--bg-surface-2)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}>
+                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", borderRadius: "10px", cursor: "pointer", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", transition: "filter 0.15s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = "brightness(0.95)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = "none"; }}>
                 <div style={{ width: "36px", height: "36px", borderRadius: "10px", backgroundColor: "var(--accent-light)", border: "1px solid rgba(255,190,80,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", color: "var(--accent)", flexShrink: 0 }}>
                   {s.icon}
                 </div>
@@ -99,11 +99,11 @@ export default function HRPage() {
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px" }}>
           <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "16px" }}>부서별 인원 현황</h3>
           {!summary || summary.dept_stats.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "160px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", gap: "10px" }}>
               <span style={{ fontSize: "32px", opacity: 0.3 }}>◎</span>
-              <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>등록된 부서가 없습니다.</p>
+              <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>등록된 부서가 없습니다</p>
               <button onClick={() => router.push("/dashboard/hr/departments")}
-                style={{ fontSize: "12px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", fontWeight: 600 }}>
+                style={{ fontSize: "12px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", fontWeight: 600 }}>
                 부서 등록하기
               </button>
             </div>

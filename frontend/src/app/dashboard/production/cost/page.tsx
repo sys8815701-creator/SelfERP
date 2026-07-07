@@ -25,7 +25,7 @@ export default function CostAnalysisPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>단위 원가 분석</h1>
         <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>BOM 기반 제품 단위당 자재 원가를 산출합니다. · {data.length}개 제품</p>

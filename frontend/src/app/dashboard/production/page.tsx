@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 
 const SHORTCUTS = [
-  { label: "품목 · 재고",    href: "/dashboard/production/items",      icon: "◇", desc: "원자재·완제품 재고 현황" },
+  { label: "품목 · 재고",    href: "/dashboard/production/items",      icon: "◇", desc: "원자재 · 완제품 재고 현황" },
   { label: "자재명세서(BOM)", href: "/dashboard/production/bom",       icon: "◈", desc: "제품 구성 자재 정의" },
   { label: "생산 지시서",    href: "/dashboard/production/orders",     icon: "◉", desc: "생산 계획 및 지시" },
   { label: "생산 실적",      href: "/dashboard/production/results",    icon: "◊", desc: "생산 완료 실적 등록" },
   { label: "입출고 이력",    href: "/dashboard/production/inventory",  icon: "◎", desc: "자재 입출고 이력 관리" },
   { label: "단위 원가 분석", href: "/dashboard/production/cost",       icon: "◑", desc: "BOM 기반 제품 원가 산출" },
   { label: "재고 실사",      href: "/dashboard/production/audit",      icon: "◐", desc: "장부 vs 실사 비교 조정" },
-  { label: "효율 · 알림",   href: "/dashboard/production/efficiency",  icon: "◒", desc: "달성률·불량률·안전재고" },
+  { label: "효율 · 알림",   href: "/dashboard/production/efficiency",  icon: "◒", desc: "달성률 · 불량률 · 안전재고" },
 ];
 
 function fmt(v: any) { return parseFloat(String(v ?? 0)).toLocaleString("ko-KR"); }
@@ -41,10 +41,10 @@ export default function ProductionDashboard() {
   }, []);
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>생산 대시보드</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산 관련 모듈을 통합 관리합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산 관련 모듈을 통합 관리합니다</p>
       </div>
 
       {/* 안전재고 경고 배너 */}
@@ -73,16 +73,16 @@ export default function ProductionDashboard() {
           { label: "평균 달성률",  value: loading ? "—" : `${efficiency?.avg_achievement ?? 0}%`, warn: (efficiency?.avg_achievement ?? 100) < 80 && !!efficiency?.total_orders, href: "/dashboard/production/efficiency" },
         ].map(card => (
           <div key={card.label} onClick={() => router.push(card.href)}
-            style={{ backgroundColor: "var(--bg-surface)", border: `1px solid ${card.warn ? "#FCA5A5" : "var(--border)"}`, borderRadius: "14px", padding: "20px 24px", cursor: "pointer" }}
-            onMouseEnter={e => (e.currentTarget.style.boxShadow = "var(--shadow-md)")}
-            onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}>
+            style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "20px 24px", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(255,190,80,0.1)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>{card.label}</p>
             <p style={{ fontSize: "28px", fontWeight: 900, color: card.warn ? "#DC2626" : "var(--text-primary)", lineHeight: 1 }}>{card.value}</p>
           </div>
         ))}
       </div>
 
-      {/* 효율 요약 + 바로가기 */}
+      {/* 효율 요약 + 바로 가기 */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
         {/* 효율 지표 */}
         {efficiency?.total_orders > 0 && (
@@ -108,15 +108,15 @@ export default function ProductionDashboard() {
           </div>
         )}
 
-        {/* 바로가기 */}
+        {/* 바로 가기 */}
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "20px 24px", gridColumn: efficiency?.total_orders > 0 ? "auto" : "1 / -1" }}>
-          <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "16px" }}>바로가기</p>
+          <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "16px" }}>바로 가기</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
             {SHORTCUTS.map(s => (
               <div key={s.href} onClick={() => router.push(s.href)}
-                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", backgroundColor: "var(--bg-surface-2)", borderRadius: "10px", cursor: "pointer", border: "1px solid var(--border)" }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--bg-surface-3)")}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--bg-surface-2)")}>
+                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", backgroundColor: "var(--accent-light)", borderRadius: "10px", cursor: "pointer", border: "1.5px solid #C49A30" }}
+                onMouseEnter={e => (e.currentTarget.style.filter = "brightness(0.95)")}
+                onMouseLeave={e => (e.currentTarget.style.filter = "none")}>
                 <span style={{ fontSize: "18px" }}>{s.icon}</span>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{s.label}</p>

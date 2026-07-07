@@ -236,7 +236,7 @@ export default function CardPage() {
         <div style={{ ...card, padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>주 거래 은행</p>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>등록된 은행 정보가 없습니다.</p>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>등록된 은행 정보가 없습니다</p>
           </div>
           <button
             onClick={() => { setBankForm(emptyBankForm); setIsNewBank(true); setEditingBank(true); }}
@@ -270,7 +270,7 @@ export default function CardPage() {
             {loading ? (
               <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>불러오는 중...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>{month} 거래 내역이 없습니다.</td></tr>
+              <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>{month} 거래 내역이 없습니다</td></tr>
             ) : filtered.map((tx, i) => {
               const isEditing = editingTxId === tx.id;
               const d = new Date(tx.date + "T00:00:00");

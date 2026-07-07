@@ -6,6 +6,7 @@ import { Plus, Building2, Users, Phone, Trash2, Pencil, Check, X, CheckCircle2 }
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
 import { addNotif } from "@/lib/notif";
+import { useRole, canWrite } from "@/hooks/useRole";
 
 interface Business { id: number; business_name: string; business_number: string; owner_name: string; industry: string; business_type: string; open_date: string; }
 interface Vendor { id: number; vendor_name: string; vendor_type: string; business_number: string; contact: string; }
@@ -18,10 +19,19 @@ const emptyVendorForm = { vendor_name: "", vendor_type: "거래처", business_nu
 
 export default function BusinessPage() {
   const router = useRouter();
+  const role = useRole();
+  const isEmployee = !canWrite(role);
+
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeBizId, setActiveBizId] = useState<number | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // 직원 사업장 가입 요청 상태
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [joinBizNum, setJoinBizNum] = useState("");
+  const [joinSubmitting, setJoinSubmitting] = useState(false);
+  const [joinMsg, setJoinMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // 사업장 상태
   const [showBizForm, setShowBizForm] = useState(false);
@@ -62,10 +72,32 @@ export default function BusinessPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  /* 사업장 없으면 자동으로 폼 오픈 */
+  /* 사업장 없으면 자동으로 폼 오픈 (관리자만) */
   useEffect(() => {
-    if (!loading && businesses.length === 0) setShowBizForm(true);
-  }, [loading, businesses.length]);
+    if (!loading && businesses.length === 0) {
+      if (isEmployee) setShowJoinForm(true);
+      else setShowBizForm(true);
+    }
+  }, [loading, businesses.length, isEmployee]);
+
+  const formatJoinBizNum = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+  };
+
+  const submitJoinRequest = async () => {
+    if (!joinBizNum.trim()) { setJoinMsg({ ok: false, text: "사업자번호를 입력해주세요" }); return; }
+    setJoinSubmitting(true); setJoinMsg(null);
+    try {
+      const res = await api.post("/api/business/join-request", { business_number: joinBizNum });
+      setJoinMsg({ ok: true, text: `${res.data.business_name}에 가입 요청이 전송되었습니다. 관리자 승인 후 연결됩니다.` });
+      setJoinBizNum("");
+    } catch (e: any) {
+      setJoinMsg({ ok: false, text: e?.response?.data?.detail ?? "요청 실패" });
+    } finally { setJoinSubmitting(false); }
+  };
 
   const switchActive = (biz: Business) => {
     setActiveBizId(biz.id);
@@ -77,7 +109,7 @@ export default function BusinessPage() {
 
   // ── 사업장 추가 ──
   const addBusiness = async () => {
-    if (!bForm.business_name.trim()) { setBizMsg({ ok: false, text: "상호명은 필수입니다." }); return; }
+    if (!bForm.business_name.trim()) { setBizMsg({ ok: false, text: "상호명은 필수입니다" }); return; }
     setBizSubmitting(true); setBizMsg(null);
     try {
       const res = await api.post("/api/business/", {
@@ -142,7 +174,7 @@ export default function BusinessPage() {
     e.stopPropagation();
     setModal({
       title: "사업장 삭제",
-      message: "사업장을 삭제하면 모든 거래 데이터도 함께 삭제됩니다.\n삭제하면 복구할 수 없습니다.",
+      message: "사업장을 삭제하면 모든 거래 데이터도 함께 삭제됩니다.\n삭제하면 복구할 수 없습니다",
       variant: "danger",
       showCancel: true,
       confirmLabel: "삭제",
@@ -237,14 +269,53 @@ export default function BusinessPage() {
             <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>사업장 목록</span>
             <span style={{ fontSize: "12px", color: "var(--text-muted)", backgroundColor: "var(--bg-surface-2)", padding: "2px 8px", borderRadius: "6px" }}>{businesses.length}개</span>
           </div>
-          <button onClick={() => { setShowBizForm(v => !v); setBizMsg(null); }}
-            style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-            <Plus size={14} /> 사업장 추가
-          </button>
+          {isEmployee ? (
+            <button onClick={() => { setShowJoinForm(v => !v); setJoinMsg(null); }}
+              style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              <Plus size={14} /> 사업장 가입 요청
+            </button>
+          ) : (
+            <button onClick={() => { setShowBizForm(v => !v); setBizMsg(null); }}
+              style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              <Plus size={14} /> 사업장 추가
+            </button>
+          )}
         </div>
 
-        {/* 사업장 추가 폼 */}
-        {showBizForm && (
+        {/* 직원 — 사업장 가입 요청 폼 */}
+        {isEmployee && showJoinForm && (
+          <div style={{ ...card, padding: "18px", marginBottom: "12px", border: "1.5px solid var(--accent)" }}>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>사업장 가입 요청</p>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: 1.5 }}>
+              소속되고자 하는 사업장의 사업자등록번호를 입력하세요.<br />
+              관리자 승인 후 사업장에 연결됩니다.
+            </p>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+              <input
+                type="text"
+                placeholder="000-00-00000"
+                value={joinBizNum}
+                onChange={e => setJoinBizNum(formatJoinBizNum(e.target.value))}
+                onKeyDown={e => { if (e.key === "Enter") submitJoinRequest(); }}
+                style={{ ...inputStyle, flex: 1, fontSize: "15px" }}
+              />
+              <button onClick={submitJoinRequest} disabled={joinSubmitting}
+                style={{ padding: "7px 18px", borderRadius: "8px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", fontSize: "13px", fontWeight: 700, cursor: joinSubmitting ? "not-allowed" : "pointer", whiteSpace: "nowrap", opacity: joinSubmitting ? 0.7 : 1 }}>
+                {joinSubmitting ? "요청 중..." : "가입 요청"}
+              </button>
+            </div>
+            {joinMsg && (
+              <p style={{ fontSize: "12px", color: joinMsg.ok ? "#10B981" : "#EF4444", lineHeight: 1.5 }}>{joinMsg.text}</p>
+            )}
+            <button onClick={() => { setShowJoinForm(false); setJoinMsg(null); setJoinBizNum(""); }}
+              style={{ marginTop: "10px", background: "none", border: "none", color: "var(--text-muted)", fontSize: "12px", cursor: "pointer" }}>
+              닫기
+            </button>
+          </div>
+        )}
+
+        {/* 관리자 — 사업장 추가 폼 */}
+        {!isEmployee && showBizForm && (
           <div style={{ ...card, padding: "18px", marginBottom: "12px" }}>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "12px" }}>새 사업장 등록</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "10px" }}>
@@ -289,8 +360,12 @@ export default function BusinessPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {businesses.length === 0 ? (
             <div style={{ ...card, padding: "50px", textAlign: "center", color: "var(--text-muted)" }}>
-              <p style={{ fontSize: "14px", fontWeight: 600, marginBottom: "6px" }}>등록된 사업장이 없습니다</p>
-              <p style={{ fontSize: "13px" }}>사업장 추가 버튼을 눌러 등록하세요</p>
+              <p style={{ fontSize: "14px", fontWeight: 600, marginBottom: "6px" }}>소속된 사업장이 없습니다</p>
+              <p style={{ fontSize: "13px" }}>
+                {isEmployee
+                  ? "사업장 가입 요청 버튼을 눌러 소속 사업장을 신청하세요"
+                  : "사업장 추가 버튼을 눌러 등록하세요"}
+              </p>
             </div>
           ) : businesses.map(biz => {
             const isActive = biz.id === activeBizId;
@@ -394,7 +469,7 @@ export default function BusinessPage() {
           </div>
           {activeBusiness && (
             <button onClick={() => setShowVendorForm(v => !v)}
-              style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
               <Plus size={14} /> 거래처 추가
             </button>
           )}

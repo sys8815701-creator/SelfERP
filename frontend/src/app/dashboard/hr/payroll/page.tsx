@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
 
 interface Employee { id: number; name: string; base_salary: number; }
 interface PayrollRecord {
@@ -30,10 +31,10 @@ interface PayrollRecord {
   note: string | null;
 }
 
-const STATUS_COLORS: Record<string, { text: string; bg: string }> = {
-  작성중:   { text: "#6B7280", bg: "#6B728018" },
-  확정:     { text: "#F59E0B", bg: "#F59E0B18" },
-  지급완료: { text: "#22C55E", bg: "#22C55E18" },
+const STATUS_COLORS: Record<string, { text: string; bg: string; border: string }> = {
+  작성중:   { text: "#6B7280", bg: "rgba(107,114,128,0.10)", border: "1px solid rgba(107,114,128,0.30)" },
+  확정:     { text: "#F59E0B", bg: "rgba(245,158,11,0.12)",  border: "1px solid rgba(245,158,11,0.40)" },
+  지급완료: { text: "#22C55E", bg: "rgba(34,197,94,0.12)",   border: "1px solid rgba(34,197,94,0.40)" },
 };
 
 const EMPTY_FORM = {
@@ -59,6 +60,7 @@ export default function PayrollPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [calculating, setCalculating] = useState(false);
+  const [modal, setModal] = useState<ModalConfig | null>(null);
 
   const [activeTab, setActiveTab] = useState<"payroll" | "severance">("payroll");
   const [sevForm, setSevForm] = useState({ employee_id: "" as string | number, resign_date: "", avg_wage_3m: 0, note: "" });
@@ -104,7 +106,7 @@ export default function PayrollPage() {
   };
 
   const savePayroll = async () => {
-    if (!form.employee_id) { setError("직원을 선택하세요."); return; }
+    if (!form.employee_id) { setError("직원을 선택하세요"); return; }
     setSaving(true); setError("");
     try {
       const payload = { ...form, employee_id: Number(form.employee_id), pay_year: year, pay_month: month };
@@ -117,13 +119,15 @@ export default function PayrollPage() {
 
   const updateStatus = async (id: number, status: string) => {
     try { await api.put(`/api/hr/payroll/${id}`, { status }, { headers: bizHeaders() }); fetchAll(); }
-    catch { alert("상태 변경 실패"); }
+    catch { setModal({ message: "상태 변경 실패", variant: "error" }); }
   };
 
-  const deletePayroll = async (id: number) => {
-    if (!confirm("급여명세서를 삭제하시겠습니까?")) return;
-    try { await api.delete(`/api/hr/payroll/${id}`, { headers: bizHeaders() }); fetchAll(); }
-    catch { alert("삭제 실패"); }
+  const deletePayroll = (id: number) => {
+    setModal({ title: "삭제 확인", message: "급여명세서를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try { await api.delete(`/api/hr/payroll/${id}`, { headers: bizHeaders() }); fetchAll(); }
+        catch { setModal({ message: "삭제 실패", variant: "error" }); }
+      } });
   };
 
   const calcSeverance = async () => {
@@ -132,7 +136,7 @@ export default function PayrollPage() {
       const res = await api.post(`/api/hr/payroll/severance/calculate?employee_id=${sevForm.employee_id}&resign_date=${sevForm.resign_date}`, {}, { headers: bizHeaders() });
       setSevResult(res.data);
       setSevForm(f => ({ ...f, avg_wage_3m: res.data.avg_wage_monthly }));
-    } catch (e: any) { alert(e?.response?.data?.detail || "계산 실패"); }
+    } catch (e: any) { setModal({ message: e?.response?.data?.detail || "계산 실패", variant: "error" }); }
   };
 
   const saveSeverance = async () => {
@@ -140,10 +144,10 @@ export default function PayrollPage() {
     setSevSaving(true);
     try {
       await api.post("/api/hr/payroll/severance/", { employee_id: Number(sevForm.employee_id), resign_date: sevForm.resign_date, avg_wage_3m: sevResult.avg_wage_monthly, note: sevForm.note }, { headers: bizHeaders() });
-      alert("퇴직금 정산이 완료되었습니다.");
+      setModal({ message: "퇴직금 정산이 완료되었습니다", variant: "info" });
       setSevResult(null);
       setSevForm({ employee_id: "", resign_date: "", avg_wage_3m: 0, note: "" });
-    } catch (e: any) { alert(e?.response?.data?.detail || "저장 실패"); }
+    } catch (e: any) { setModal({ message: e?.response?.data?.detail || "저장 실패", variant: "error" }); }
     setSevSaving(false);
   };
 
@@ -163,7 +167,7 @@ export default function PayrollPage() {
   const net = gross - deductions;
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>급여 정산</h1>
@@ -210,7 +214,7 @@ export default function PayrollPage() {
               </div>
             )}
             <button onClick={openCreate}
-              style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
               + 급여명세서 추가
             </button>
           </div>
@@ -218,10 +222,10 @@ export default function PayrollPage() {
           {loading ? (
             <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</div>
           ) : payrolls.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
               <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◒</p>
-              <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>{year}년 {month}월 급여명세서가 없습니다.</p>
-              <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>급여명세서 생성</button>
+              <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>{year}년 {month}월 급여명세서가 없습니다</p>
+              <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>급여명세서 생성</button>
             </div>
           ) : (
             <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
@@ -256,7 +260,7 @@ export default function PayrollPage() {
                         </td>
                         <td style={{ padding: "13px 14px" }}>
                           <select value={p.status} onChange={e => updateStatus(p.id, e.target.value)}
-                            style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: "none", borderRadius: "99px", padding: "4px 10px", cursor: "pointer", outline: "none" }}>
+                            style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: sc.border, borderRadius: "99px", padding: "4px 10px", cursor: "pointer", outline: "none" }}>
                             {["작성중", "확정", "지급완료"].map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </td>
@@ -322,7 +326,7 @@ export default function PayrollPage() {
                   <p style={{ fontSize: "24px", fontWeight: 800, color: "var(--accent)", margin: "4px 0 0" }}>{fmt(Math.round(sevResult.severance_pay))}원</p>
                 </div>
                 <button onClick={saveSeverance} disabled={sevSaving}
-                  style={{ padding: "11px", borderRadius: "8px", border: "none", backgroundColor: "var(--accent)", color: "var(--accent-text)", fontWeight: 700, fontSize: "13px", cursor: sevSaving ? "not-allowed" : "pointer", opacity: sevSaving ? 0.7 : 1 }}>
+                  style={{ padding: "11px", borderRadius: "8px", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", color: "var(--accent)", fontWeight: 700, fontSize: "13px", cursor: sevSaving ? "not-allowed" : "pointer", opacity: sevSaving ? 0.7 : 1 }}>
                   {sevSaving ? "처리 중..." : "퇴직금 정산 확정"}
                 </button>
               </div>
@@ -330,6 +334,8 @@ export default function PayrollPage() {
           </div>
         </div>
       )}
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {/* 급여명세서 모달 */}
       {showModal && (
@@ -398,7 +404,7 @@ export default function PayrollPage() {
 
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={() => setShowModal(false)} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>취소</button>
-              <button onClick={savePayroll} disabled={saving} style={{ flex: 2, padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "var(--accent)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent-text)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>{saving ? "저장 중..." : "저장"}</button>
+              <button onClick={savePayroll} disabled={saving} style={{ flex: 2, padding: "10px", borderRadius: "8px", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>{saving ? "저장 중..." : "저장"}</button>
             </div>
           </div>
         </div>

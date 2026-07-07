@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
+import Modal, { ModalConfig } from "@/components/Modal";
 
 const TYPES = ["원자재", "반제품", "완제품", "소모품"];
 
-const TYPE_COLOR: Record<string, { bg: string; color: string }> = {
-  원자재: { bg: "#DBEAFE", color: "#1D4ED8" },
-  반제품: { bg: "#FEF3C7", color: "#D97706" },
-  완제품: { bg: "#DCFCE7", color: "#15803D" },
-  소모품: { bg: "#F3F4F6", color: "#6B7280" },
+const TYPE_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  원자재: { backgroundColor: "rgba(29,78,216,0.12)",   color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.40)" },
+  반제품: { backgroundColor: "rgba(217,119,6,0.12)",   color: "#D97706", border: "1px solid rgba(217,119,6,0.40)" },
+  완제품: { backgroundColor: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
+  소모품: { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" },
 };
 
 const EMPTY = { item_code: "", item_name: "", item_type: "원자재", unit: "개", unit_price: 0, current_stock: 0, safety_stock: 0, max_stock: 0, description: "" };
@@ -17,6 +19,7 @@ const EMPTY = { item_code: "", item_name: "", item_type: "원자재", unit: "개
 function fmt(v: any) { return parseFloat(String(v ?? 0)).toLocaleString("ko-KR"); }
 
 export default function ItemsPage() {
+  const role = useRole();
   const [items, setItems]       = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [typeFilter, setTypeFilter] = useState("");
@@ -28,6 +31,7 @@ export default function ItemsPage() {
   const [form, setForm]           = useState<any>({ ...EMPTY });
   const [saving, setSaving]       = useState(false);
   const [drawer, setDrawer]       = useState<any>(null);
+  const [modal, setModal]         = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
 
@@ -76,15 +80,17 @@ export default function ItemsPage() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("품목을 삭제하시겠습니까?")) return;
-    try {
-      await api.delete(`/api/production/items/${id}`, { headers: { "X-Business-Id": bizId() } });
-      setDrawer(null);
-      await load();
-    } catch (e: any) {
-      alert(e.response?.data?.detail || "삭제 실패");
-    }
+  const handleDelete = (id: number) => {
+    setModal({ title: "삭제 확인", message: "품목을 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/production/items/${id}`, { headers: { "X-Business-Id": bizId() } });
+          setDrawer(null);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e.response?.data?.detail || "삭제 실패", variant: "error" });
+        }
+      } });
   };
 
   const F = (key: string, label: string, type = "text", opts?: string[]) => (
@@ -104,16 +110,18 @@ export default function ItemsPage() {
   );
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>품목 · 재고</h1>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>원자재·반제품·완제품을 관리합니다. · {items.length}개</p>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>원자재 · 반제품 · 완제품을 관리합니다. · {items.length}개</p>
         </div>
-        <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 품목 등록
-        </button>
+        {canWrite(role) && (
+          <button onClick={openCreate}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 품목 등록
+          </button>
+        )}
       </div>
 
       {/* 필터 */}
@@ -146,8 +154,8 @@ export default function ItemsPage() {
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
             ) : items.length === 0 ? (
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
-                등록된 품목이 없습니다.<br />
-                <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>품목 등록</button>
+                등록된 품목이 없습니다<br />
+                {canWrite(role) && <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>품목 등록</button>}
               </td></tr>
             ) : items.map((item, i) => {
               const tc = TYPE_COLOR[item.item_type] || { bg: "#F3F4F6", color: "#374151" };
@@ -172,14 +180,17 @@ export default function ItemsPage() {
                   <td style={{ padding: "12px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{Number(item.unit_price).toLocaleString()}원</td>
                   <td style={{ padding: "12px 14px" }}>
                     <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px",
-                      backgroundColor: item.is_active === 1 ? "#DCFCE7" : "#F3F4F6",
+                      backgroundColor: item.is_active === 1 ? "rgba(21,128,61,0.12)" : "rgba(107,114,128,0.10)",
+                      border: item.is_active === 1 ? "1px solid rgba(21,128,61,0.40)" : "1px solid rgba(107,114,128,0.30)",
                       color: item.is_active === 1 ? "#15803D" : "#9CA3AF" }}>
                       {item.is_active === 1 ? "사용" : "중지"}
                     </span>
                   </td>
                   <td style={{ padding: "12px 14px" }}>
-                    <button onClick={e => { e.stopPropagation(); openEdit(item); }}
-                      style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
+                    {canWrite(role) && (
+                      <button onClick={e => { e.stopPropagation(); openEdit(item); }}
+                        style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
+                    )}
                   </td>
                 </tr>
               );
@@ -187,6 +198,8 @@ export default function ItemsPage() {
           </tbody>
         </table>
       </div>
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {/* 드로어 */}
       {drawer && (
@@ -218,10 +231,14 @@ export default function ItemsPage() {
               </div>
             )}
             <div style={{ display: "flex", gap: "8px", marginTop: "24px" }}>
-              <button onClick={() => { setDrawer(null); openEdit(drawer); }}
-                style={{ flex: 1, padding: "10px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>수정</button>
-              <button onClick={() => handleDelete(drawer.id)}
-                style={{ padding: "10px 14px", backgroundColor: "transparent", color: "#EF4444", border: "1px solid #FCA5A5", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>삭제</button>
+              {canWrite(role) && (
+                <button onClick={() => { setDrawer(null); openEdit(drawer); }}
+                  style={{ flex: 1, padding: "10px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>수정</button>
+              )}
+              {canDelete(role) && (
+                <button onClick={() => handleDelete(drawer.id)}
+                  style={{ padding: "10px 14px", backgroundColor: "transparent", color: "#EF4444", border: "1px solid #FCA5A5", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>삭제</button>
+              )}
             </div>
           </div>
         </>
@@ -257,7 +274,7 @@ export default function ItemsPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
               <button onClick={handleSave} disabled={saving || !form.item_name}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : editing ? "수정 완료" : "등록"}
               </button>
               <button onClick={() => setShowModal(false)}

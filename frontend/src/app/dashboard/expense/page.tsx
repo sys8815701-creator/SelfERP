@@ -57,7 +57,7 @@ export default function ExpensePage() {
           setForm({ title: "", amount: "", category: "식비" });
           setShowForm(false);
           fetchExpenses();
-        } catch (e: any) { setModal({ message: e?.response?.data?.detail ?? "오류가 발생했습니다.", variant: "error" }); }
+        } catch (e: any) { setModal({ message: e?.response?.data?.detail ?? "오류가 발생했습니다", variant: "error" }); }
         finally { setSubmitting(false); }
       },
     });

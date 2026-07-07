@@ -3,11 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 
-const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-  대기:   { bg: "#F3F4F6", color: "#6B7280" },
-  생산중: { bg: "#DBEAFE", color: "#1D4ED8" },
-  완료:   { bg: "#DCFCE7", color: "#15803D" },
-  취소:   { bg: "#FEF2F2", color: "#DC2626" },
+const STATUS_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  대기:   { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" },
+  생산중: { backgroundColor: "rgba(29,78,216,0.12)",   color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.40)" },
+  완료:   { backgroundColor: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
+  취소:   { backgroundColor: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
 };
 
 const EMPTY = { order_no: "", product_id: "", bom_id: "", planned_qty: "", planned_date: "", note: "" };
@@ -94,14 +94,14 @@ export default function ProductionOrdersPage() {
   };
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>생산 지시서</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산 계획을 수립하고 지시합니다. · {orders.length}건</p>
         </div>
         <button onClick={() => { setForm({ ...EMPTY }); setShowModal(true); }}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 생산 지시
         </button>
       </div>
@@ -129,7 +129,7 @@ export default function ProductionOrdersPage() {
             {loading ? (
               <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>생산 지시서가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>생산 지시서가 없습니다</td></tr>
             ) : orders.map((order, i) => {
               const sc = STATUS_COLOR[order.status] || { bg: "#F3F4F6", color: "#374151" };
               const pct = order.planned_qty > 0 ? Math.round((order.completed_qty || 0) / order.planned_qty * 100) : 0;
@@ -224,7 +224,7 @@ export default function ProductionOrdersPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
               <button onClick={handleSave} disabled={saving || !form.product_id || !form.planned_qty}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "지시"}
               </button>
               <button onClick={() => setShowModal(false)}
@@ -263,7 +263,7 @@ export default function ProductionOrdersPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={handleSaveResult} disabled={savingResult || !resultForm.completed_qty || !resultForm.completed_date}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: savingResult ? "not-allowed" : "pointer", opacity: savingResult ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: savingResult ? "not-allowed" : "pointer", opacity: savingResult ? 0.6 : 1 }}>
                 {savingResult ? "저장 중..." : "실적 등록"}
               </button>
               <button onClick={() => setShowResultModal(false)}

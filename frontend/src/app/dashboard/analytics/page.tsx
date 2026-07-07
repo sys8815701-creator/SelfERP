@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
       <div>
         <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>경영 분석</h1>
         <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "2px" }}>
-          월별 수익·비용 현황과 비용 구조를 한눈에 파악하세요
+          월별 수익 · 비용 현황과 비용 구조를 한눈에 파악하세요
         </p>
       </div>
 

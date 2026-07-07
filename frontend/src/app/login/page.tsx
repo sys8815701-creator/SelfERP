@@ -8,6 +8,17 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+function getHomePage(user: { role: string; department_name?: string }): string {
+  if (user.role === "admin" || user.role === "accountant") return "/dashboard/integrated";
+  if (user.role === "employee") return "/dashboard/integrated/alerts";
+  const dept = (user.department_name || "").toLowerCase();
+  if (dept.includes("인사") || dept.includes("hr"))          return "/dashboard/hr/leave";
+  if (dept.includes("회계") || dept.includes("재무") || dept.includes("경리")) return "/dashboard/accounting";
+  if (dept.includes("생산") || dept.includes("제조"))         return "/dashboard/production/items";
+  if (dept.includes("유통") || dept.includes("물류") || dept.includes("영업")) return "/dashboard/distribution/orders";
+  return "/dashboard/integrated/alerts";
+}
+
 const SOCIAL_ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "보안 검증 실패. 다시 시도해주세요.",
   kakao_token: "카카오 인증 실패. 다시 시도해주세요.",
@@ -69,19 +80,30 @@ export default function LoginPage() {
        "bk-vat-checklist", "selectedMonth"].forEach(k => localStorage.removeItem(k));
       localStorage.setItem("access_token", res.data.access_token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
+      /* 부서 정보 조회 (라우팅에 사용) */
+      let userWithDept = { ...res.data.user };
+      try {
+        const deptRes = await api.get("/api/auth/my-department");
+        userWithDept = { ...userWithDept, department_name: deptRes.data.department_name };
+      } catch { /* 부서 미조회 시 role로 폴백 */ }
       /* 사업장 유무에 따라 초기 화면 분기 */
       try {
         const bizRes = await api.get("/api/business/");
         if (bizRes.data.length === 0) {
-          router.push("/dashboard/business");
+          /* employee 계정은 사업장을 등록할 수 없으므로 홈으로 */
+          if (res.data.user.role === "employee") {
+            router.push(getHomePage(userWithDept));
+          } else {
+            router.push("/dashboard/business");
+          }
         } else {
           const biz = bizRes.data[0];
           localStorage.setItem("business", JSON.stringify(biz));
           localStorage.setItem("activeBizId", String(biz.id));
-          router.push("/dashboard");
+          router.push(getHomePage(userWithDept));
         }
       } catch {
-        router.push("/dashboard");
+        router.push(getHomePage(userWithDept));
       }
     } catch {
       setError(loginType === "personal"

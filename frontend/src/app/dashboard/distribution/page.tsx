@@ -9,7 +9,7 @@ const SHORTCUTS = [
   { label: "배송 지시",   href: "/dashboard/distribution/deliveries",  icon: "◈", desc: "배송 계획 수립 및 지시" },
   { label: "차량 관리",   href: "/dashboard/distribution/vehicles",    icon: "◉", desc: "배송 차량 및 기사 관리" },
   { label: "반품 처리",   href: "/dashboard/distribution/returns",     icon: "◊", desc: "반품 접수 및 재고 복원" },
-  { label: "유통 분석",   href: "/dashboard/distribution/analytics",   icon: "◎", desc: "배송 완료율·반품률 분석" },
+  { label: "유통 분석",   href: "/dashboard/distribution/analytics",   icon: "◎", desc: "배송 완료율 · 반품률 분석" },
 ];
 
 export default function DistributionDashboard() {
@@ -33,10 +33,10 @@ export default function DistributionDashboard() {
   }, []);
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>유통 대시보드</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>수주·배송·반품을 통합 관리합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>수주 · 배송 · 반품을 통합 관리합니다</p>
       </div>
 
       {/* 요약 카드 */}
@@ -48,11 +48,11 @@ export default function DistributionDashboard() {
           { label: "반품 건수",     value: loading ? "—" : (summary?.total_returns ?? 0),     href: "/dashboard/distribution/returns",     warn: (summary?.total_returns ?? 0) > 0 },
         ].map(card => (
           <div key={card.label} onClick={() => router.push(card.href)}
-            style={{ backgroundColor: "var(--bg-surface)", border: `1px solid ${card.warn ? "#FCA5A5" : "var(--border)"}`, borderRadius: "14px", padding: "20px 24px", cursor: "pointer" }}
-            onMouseEnter={e => (e.currentTarget.style.boxShadow = "var(--shadow-md)")}
-            onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}>
+            style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "20px 24px", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(255,190,80,0.1)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>{card.label}</p>
-            <p style={{ fontSize: "28px", fontWeight: 900, color: card.warn ? "#DC2626" : "var(--text-primary)", lineHeight: 1 }}>{card.value}</p>
+            <p style={{ fontSize: "28px", fontWeight: 900, color: "var(--text-primary)", lineHeight: 1 }}>{card.value}</p>
           </div>
         ))}
       </div>
@@ -84,15 +84,15 @@ export default function DistributionDashboard() {
           </div>
         )}
 
-        {/* 바로가기 */}
+        {/* 바로 가기 */}
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "20px 24px", gridColumn: !analytics ? "1 / -1" : "auto" }}>
-          <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "16px" }}>바로가기</p>
+          <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "16px" }}>바로 가기</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             {SHORTCUTS.map(s => (
               <div key={s.href} onClick={() => router.push(s.href)}
-                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", backgroundColor: "var(--bg-surface-2)", borderRadius: "10px", cursor: "pointer", border: "1px solid var(--border)" }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--bg-surface-3)")}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "var(--bg-surface-2)")}>
+                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", backgroundColor: "var(--accent-light)", borderRadius: "10px", cursor: "pointer", border: "1.5px solid #C49A30" }}
+                onMouseEnter={e => (e.currentTarget.style.filter = "brightness(0.95)")}
+                onMouseLeave={e => (e.currentTarget.style.filter = "none")}>
                 <span style={{ fontSize: "18px" }}>{s.icon}</span>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{s.label}</p>

@@ -1,7 +1,7 @@
 # SelfERP
-### AI 기반 소상공인 자동 장부 및 회계 관리 시스템
+### AI 기반 소상공인 통합 ERP 시스템
 
-> 영수증 OCR 자동 인식 · AI 회계 비서 · 실시간 재무 분석을 하나의 플랫폼에서 제공합니다.
+> 영수증 OCR 자동 인식 · AI 회계 비서 · 인사·생산·유통·회계 통합 관리를 하나의 플랫폼에서 제공합니다.
 
 ---
 
@@ -10,7 +10,7 @@
 | 구분 | URL |
 |------|-----|
 | 홈페이지 | http://localhost:3000 |
-| FastAPI 자동 문서 | http://localhost:8000/docs |
+| FastAPI 자동 문서 | http://localhost:8002/docs |
 
 ---
 
@@ -69,13 +69,14 @@ KDI 연구자료 「소상공인 디지털 전환 현황 및 단계별 추진전
 
 ## 목적
 
-**OCR로 읽은 영수증 → 자동 분개 → 회계장부 반영**
+**OCR로 읽은 영수증 → 자동 분개 → 회계장부 반영**  
+**인사·생산·유통 업무까지 하나의 플랫폼에서 통합 관리**
 
 ---
 
 ## 목표
 
-본 프로젝트는 OCR 기반 자동 데이터 수집, LLM 기반 분개 자동화, 실시간 재무 분석 대시보드를 결합한 통합 회계 관리 시스템 구축을 목표로 합니다.
+본 프로젝트는 OCR 기반 자동 데이터 수집, LLM 기반 분개 자동화, 실시간 재무 분석 대시보드를 결합한 통합 ERP 시스템 구축을 목표로 합니다.
 
 | 단계 | 목표 |
 |------|------|
@@ -83,7 +84,10 @@ KDI 연구자료 「소상공인 디지털 전환 현황 및 단계별 추진전
 | 2차 | 은행 및 카드 매출 데이터 연동 |
 | 3차 | AI 자동 계정과목 분류 |
 | 4차 | 부가세 및 손익 관리 |
-| 최종 | 소상공인을 위한 AI 회계 ERP 구축<br>영수증 OCR + 카드매출 관리 + 은행 거래관리 + 자동 장부 + 부가세 관리 + AI 회계 비서 + 경영 분석 |
+| 5차 | 인사 · 급여 · 근태 관리 모듈 추가 |
+| 6차 | 생산 관리 (품목 · BOM · 생산지시) 모듈 추가 |
+| 7차 | 유통 관리 (주문 · 배송 · 경로) 모듈 추가 |
+| 최종 | 소상공인을 위한 AI 통합 ERP — 회계 · 인사 · 생산 · 유통 · 통합관리 전 분야 지원 |
 
 ---
 
@@ -94,9 +98,9 @@ KDI 연구자료 「소상공인 디지털 전환 현황 및 단계별 추진전
    ↓
 웹 브라우저
    ↓
-Next.js Frontend
+Next.js Frontend (port 3000)
    ↓
-FastAPI Backend
+FastAPI Backend (port 8002)
    ↓
 MySQL Database
    ↓
@@ -113,81 +117,142 @@ AI 분석 엔진 (LLM)
 accounting-platform/
 ├── frontend/                                      # Next.js 15 (App Router)
 │   ├── public/
-│   │   ├── selferp-logo.svg                       # 앱 등록용 1024×1024 로고
-│   │   └── selferp-logo.jpg                       # 소셜 로그인 등록용 JPG
+│   │   ├── selferp-logo.svg
+│   │   └── selferp-logo.jpg
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.tsx                         # 루트 레이아웃
+│   │   │   ├── layout.tsx
 │   │   │   ├── page.tsx                           # 랜딩 페이지
-│   │   │   ├── globals.css                        # 전역 CSS (테마 변수)
-│   │   │   ├── login/page.tsx                     # 로그인 (이메일 + 소셜)
+│   │   │   ├── globals.css
+│   │   │   ├── login/page.tsx                     # 로그인 (이메일 + 소셜, 역할별 리다이렉트)
 │   │   │   ├── register/page.tsx                  # 회원가입
-│   │   │   ├── auth/callback/page.tsx             # OAuth 콜백 처리
+│   │   │   ├── auth/callback/page.tsx             # OAuth 콜백
 │   │   │   └── dashboard/
-│   │   │       ├── layout.tsx                     # 대시보드 레이아웃 (사이드바)
-│   │   │       ├── page.tsx                       # 대시보드 홈 (AI 회계 비서 위젯)
-│   │   │       ├── QuickJournalModal.tsx          # 빠른 거래 추가 모달
-│   │   │       ├── ai/page.tsx                    # AI 회계 비서 전용 페이지
-│   │   │       ├── analytics/page.tsx             # 경영 분석 (월별 추이, 비용 구성)
-│   │   │       ├── business/page.tsx              # 사업자 정보 관리
-│   │   │       ├── card/page.tsx                  # 카드 매출 내역
-│   │   │       ├── expense/page.tsx               # 경비 정산
-│   │   │       ├── help/page.tsx                  # 도움말 (FAQ · 고객 지원)
-│   │   │       ├── ledger/page.tsx                # 회계 장부 (거래 내역 + 페이지네이션)
-│   │   │       ├── ocr/page.tsx                   # 영수증 OCR 인식
-│   │   │       ├── pro/page.tsx                   # Pro 플랜 소개
-│   │   │       ├── pro/payment/page.tsx           # 결제 페이지
-│   │   │       ├── profile/page.tsx               # 프로필 설정
-│   │   │       ├── security/page.tsx              # 보안 설정
-│   │   │       ├── settings/page.tsx              # 환경 설정
-│   │   │       └── vat/page.tsx                   # 부가세 신고
+│   │   │       ├── layout.tsx                     # 사이드바 (5개 분야 네비게이션)
+│   │   │       ├── page.tsx
+│   │   │       ├── QuickJournalModal.tsx
+│   │   │       ├── help/page.tsx                  # 도움말 (분야별 빠른 시작 가이드 + FAQ)
+│   │   │       │
+│   │   │       ├── integrated/                    # 통합관리
+│   │   │       │   ├── page.tsx                   # 통합 대시보드 (4모듈 KPI)
+│   │   │       │   ├── alerts/page.tsx            # 알림 센터
+│   │   │       │   ├── accounts/page.tsx          # 계정 관리
+│   │   │       │   ├── access/page.tsx            # 권한 관리
+│   │   │       │   ├── pending/page.tsx           # 가입 승인 대기
+│   │   │       │   └── export/page.tsx            # 데이터 내보내기
+│   │   │       │
+│   │   │       ├── accounting/                    # 회계
+│   │   │       │   ├── page.tsx                   # 회계 대시보드
+│   │   │       │   ├── vendors/page.tsx           # 거래처 관리
+│   │   │       │   ├── ar-ap/page.tsx             # 매출채권 · 매입채무
+│   │   │       │   ├── tax-invoice/page.tsx       # 세금계산서
+│   │   │       │   ├── estimates/page.tsx         # 견적서
+│   │   │       │   ├── budget/page.tsx            # 예산 관리
+│   │   │       │   └── statements/page.tsx        # 재무제표
+│   │   │       │
+│   │   │       ├── hr/                            # 인사
+│   │   │       │   ├── page.tsx                   # 인사 대시보드
+│   │   │       │   ├── employees/page.tsx         # 직원 관리
+│   │   │       │   ├── leave/page.tsx             # 근태 · 휴가
+│   │   │       │   ├── payroll/page.tsx           # 급여 관리
+│   │   │       │   ├── departments/page.tsx       # 부서 관리
+│   │   │       │   └── contracts/page.tsx         # 계약 관리
+│   │   │       │
+│   │   │       ├── production/                    # 생산
+│   │   │       │   ├── page.tsx                   # 생산 대시보드
+│   │   │       │   ├── items/page.tsx             # 품목 관리
+│   │   │       │   ├── bom/page.tsx               # BOM 관리
+│   │   │       │   ├── orders/page.tsx            # 생산 지시
+│   │   │       │   ├── inventory/page.tsx         # 재고 현황
+│   │   │       │   ├── results/page.tsx           # 생산 실적
+│   │   │       │   ├── cost/page.tsx              # 원가 분석
+│   │   │       │   ├── efficiency/page.tsx        # 생산 효율
+│   │   │       │   └── audit/page.tsx             # 품질 감사
+│   │   │       │
+│   │   │       ├── distribution/                  # 유통
+│   │   │       │   ├── page.tsx                   # 유통 대시보드
+│   │   │       │   ├── orders/page.tsx            # 주문 관리
+│   │   │       │   ├── deliveries/page.tsx        # 배송 현황
+│   │   │       │   ├── vehicles/page.tsx          # 차량 관리
+│   │   │       │   ├── route/page.tsx             # 경로 최적화
+│   │   │       │   ├── fee/page.tsx               # 배송비 정산
+│   │   │       │   ├── returns/page.tsx           # 반품 관리
+│   │   │       │   └── analytics/page.tsx         # 유통 분석
+│   │   │       │
+│   │   │       ├── ai/page.tsx
+│   │   │       ├── analytics/page.tsx
+│   │   │       ├── business/page.tsx              # 사업장 관리 (가입 요청 포함)
+│   │   │       ├── card/page.tsx
+│   │   │       ├── expense/page.tsx
+│   │   │       ├── ledger/page.tsx
+│   │   │       ├── ocr/page.tsx
+│   │   │       ├── vat/page.tsx
+│   │   │       ├── profile/page.tsx
+│   │   │       ├── security/page.tsx
+│   │   │       └── settings/page.tsx
 │   │   ├── components/
-│   │   │   ├── Modal.tsx                          # 공통 모달
-│   │   │   ├── ThemeToggle.tsx                    # 다크 · 라이트 테마 토글
+│   │   │   ├── Modal.tsx
+│   │   │   ├── ThemeToggle.tsx
 │   │   │   └── layout/
-│   │   │       ├── Header.tsx                     # 상단 헤더
-│   │   │       ├── MainLayout.tsx                 # 메인 레이아웃 래퍼
-│   │   │       └── Sidebar.tsx                    # 사이드바 네비게이션
+│   │   │       ├── Header.tsx
+│   │   │       ├── MainLayout.tsx
+│   │   │       └── Sidebar.tsx
+│   │   ├── hooks/                                 # 커스텀 훅
 │   │   └── lib/
-│   │       ├── api.ts                             # axios 인스턴스 (JWT 자동 첨부)
-│   │       ├── notif.ts                           # 알림 유틸
-│   │       ├── socket.ts                          # Socket.IO 클라이언트
-│   │       └── theme.tsx                          # 테마 컨텍스트
+│   │       ├── api.ts
+│   │       ├── notif.ts
+│   │       ├── socket.ts
+│   │       └── theme.tsx
+│   ├── .env.local                                 # NEXT_PUBLIC_API_URL=http://localhost:8002
 │   ├── next.config.ts
 │   ├── tailwind.config.ts
 │   └── tsconfig.json
 │
 └── backend/                                       # FastAPI
-    ├── main.py                                    # 앱 진입점 (load_dotenv 포함)
-    ├── .env.example                               # 환경변수 템플릿
+    ├── main.py                                    # 앱 진입점 + DB 마이그레이션 + Socket.IO 마운트
+    ├── .env.example
     ├── requirements.txt
-    ├── Procfile                                   # Railway 배포용
-    ├── seed.py                                    # 초기 데이터 시드
-    ├── bank_transactions_sample.csv               # 은행 거래 샘플 데이터
-    ├── card_sales_sample.csv                      # 카드 매출 샘플 데이터
+    ├── Procfile
     ├── core/
-    │   ├── config.py                              # Pydantic Settings
-    │   ├── database.py                            # MySQL 연결 (SQLAlchemy)
-    │   ├── deps.py                                # 의존성 주입
-    │   ├── security.py                            # JWT 발급 · 검증
-    │   └── socket.py                              # Socket.IO 서버
-    ├── models/                                    # SQLAlchemy ORM
+    │   ├── config.py
+    │   ├── database.py
+    │   ├── deps.py                                # get_current_business (승인된 가입요청 포함)
+    │   ├── security.py
+    │   └── socket.py
+    ├── models/
     │   ├── user.py / business.py / journal.py
     │   ├── account.py / receipt.py / expense.py
     │   ├── bank_transaction.py / card_sale.py
     │   ├── vendor.py / todo.py / email_verification.py
+    │   ├── business_join_request.py               # 사업장 가입 요청 모델
+    │   ├── pending_registration.py                # 가입 대기 모델
+    │   └── system_setting.py                      # 시스템 설정 모델
     ├── routers/
     │   ├── auth.py                                # 회원가입 · 로그인 · 이메일 인증
-    │   ├── oauth.py                               # 카카오 · 구글 소셜 로그인
-    │   ├── business.py / dashboard.py / ledger.py
-    │   ├── ocr.py / expense.py / ai.py / upload.py
+    │   ├── oauth.py                               # 카카오 · 구글 · 네이버 소셜 로그인
+    │   ├── business.py                            # 사업장 + 가입 요청 승인 + 직원 생성
+    │   ├── dashboard.py / ledger.py / ocr.py
+    │   ├── expense.py / ai.py / upload.py
+    │   ├── hr.py                                  # 인사 (직원 · 부서 · 계약 · 근태 · 급여)
+    │   ├── payroll.py                             # 급여 처리
+    │   ├── vendor.py                              # 거래처 관리
+    │   ├── ar_ap.py                               # 매출채권 · 매입채무
+    │   ├── statements.py                          # 재무제표
+    │   ├── tax_invoice.py                         # 세금계산서
+    │   ├── estimate.py                            # 견적서
+    │   ├── budget.py                              # 예산
+    │   ├── cashflow_forecast.py                   # 현금흐름 예측
+    │   ├── analytics.py                           # 회계 분석
+    │   ├── production.py                          # 생산 관리
+    │   ├── distribution.py                        # 유통 관리
+    │   ├── export_csv.py                          # 데이터 내보내기
+    │   ├── pending_registration.py                # 가입 대기 관리
+    │   └── settings.py                            # 시스템 설정
     ├── services/
-    │   ├── ocr_service.py                         # EasyOCR 영수증 인식
-    │   ├── llm_service.py                         # LLM 분개 자동화
-    │   └── journal_service.py                     # 복식부기 로직
-    ├── schemas/                                   # Pydantic 스키마
-    │   └── user / business / journal / receipt / expense / account / vendor / todo
-    └── utils/email.py                             # 이메일 발송
+    │   ├── ocr_service.py
+    │   ├── llm_service.py
+    │   └── journal_service.py
+    └── schemas/
 ```
 
 ---
@@ -204,6 +269,7 @@ accounting-platform/
 | Chart.js | 통계 시각화 |
 | axios | API 통신 (JWT 인터셉터) |
 | Socket.IO Client | 실시간 알림 |
+| lucide-react | 아이콘 |
 
 ### Backend
 | 기술 | 용도 |
@@ -212,87 +278,81 @@ accounting-platform/
 | Python | 비즈니스 로직 |
 | Uvicorn | ASGI 서버 실행 |
 | SQLAlchemy | ORM |
-| MySQL | 데이터베이스 |
+| MySQL 8.4 | 데이터베이스 |
 | JWT (python-jose) | 인증 |
 | bcrypt (passlib) | 비밀번호 암호화 |
 | EasyOCR | 영수증 텍스트 인식 |
 | YOLO | 영수증 영역 감지 |
 | LangChain + OpenAI | LLM 분개 자동화 |
-| Socket.IO | 실시간 알림 |
+| Socket.IO | 실시간 알림 (FastAPI 내 /socket.io 마운트) |
 | httpx | OAuth 토큰 교환 |
 
 ---
 
 ## 주요 기능
 
-### 1) 사용자 관리
-- 회원가입 / 로그인 / JWT 인증
-- 이메일 인증 기반 가입
-- 소셜 로그인 (카카오 · 구글)
-- 사업장 등록 (상호명 · 사업자번호 · 대표자명 · 업종 · 업태 · 개업일)
+### 통합관리
+- **통합 대시보드** — 회계·인사·생산·유통 전 분야 KPI 한눈에 파악
+- **알림 센터** — 미처리 알림, 직원 가입 승인 요청 실시간 확인
+- **권한 관리** — 직원별 메뉴 접근 권한 및 역할 설정 (admin / accountant / employee)
+- **계정 관리** — 사업장 구성원 계정 일괄 관리
+- **데이터 내보내기** — 전체 데이터 CSV 일괄 다운로드
 
-### 2) 영수증 OCR
-- 업로드 방식: 휴대폰 촬영 / 파일 업로드 / PDF 업로드
-- OCR 추출 항목: 상호명 · 사업자번호 · 거래일시 · 공급가액 · 부가세 · 총금액 · 결제수단
-- OCR 결과 수정 가능 / 장부 저장 전 사용자 확인
+### 회계
+- **영수증 OCR** — 촬영 · 업로드 → EasyOCR 텍스트 추출 → AI 자동 분개
+- **회계 장부** — 전표 조회, 기간·유형·계정과목 필터, 페이지네이션
+- **AI 회계 비서** — 실시간 재무 데이터 기반 자연어 Q&A
+- **부가세 신고** — D-day 카운트다운, 신고 체크리스트, 예상 납부세액
+- **거래처 관리** — 공급업체·고객사 등록, 거래 이력 관리
+- **세금계산서 · 견적서** — 발행 및 관리
+- **예산 관리 · 재무제표** — 예산 집행률, 손익·대차 분석
+- **매출채권 · 매입채무** — 미수금 · 미지급금 추적
 
-### 3) 카드매출 관리
-- CSV · 엑셀 업로드
-- 저장 항목: 카드사 · 승인번호 · 승인일 · 승인금액 · 매입상태 · 입금예정일
-- 자동 집계: 일별 · 월별 · 카드사별 매출 / 카드 수수료
+### 인사
+- **직원 관리** — 등록, 역할·부서 배정, 상태 관리
+- **근태 · 휴가** — 출결 현황, 휴가 신청 및 승인 워크플로
+- **급여 처리** — 월별 급여 계산, 지급 내역 관리
+- **부서 관리** — 조직도 구성
+- **계약 관리** — 근로계약서 등록 및 만료 알림
 
-### 4) 은행 거래내역 관리
-- CSV · 엑셀 업로드
-- 저장 항목: 거래일 · 적요 · 입금 · 출금 · 잔액
-- 자동 분류: 매출 / 비용 / 대표자 인출 / 대출금 / 기타
+### 생산
+- **품목 관리** — 제품·원자재 등록 및 분류
+- **BOM(Bill of Materials)** — 제품 구성 자재 목록 설정
+- **생산 지시** — 작업 계획 등록, 진행 현황 추적
+- **재고 현황** — 입출고 이력, 현재 재고 수준
+- **생산 실적 · 원가 분석 · 품질 감사** — 생산성 지표 관리
 
-### 5) 자동 계정과목 추천
-| 거래처 예시 | 추천 계정과목 |
-|------------|--------------|
-| 한국전력 | 수도광열비 |
-| KT / SKT | 통신비 |
-| 쿠팡 | 소모품비 |
-| 배달의민족 | 매출 |
-| 임대료 | 지급임차료 |
+### 유통
+- **주문 처리** — 발주서·수주서 생성 및 상태 관리
+- **배송 현황** — 배송 진행 상태 실시간 추적
+- **차량 · 경로 관리** — 배송 차량 등록, AI 기반 경로 최적화
+- **배송비 정산** — 운임 자동 계산 및 정산
+- **반품 관리** — 반품 접수 및 처리 이력
+- **유통 분석** — 채널별·지역별 물류 성과 분석
 
-### 6) 증빙 자동 매칭
-- 중복 등록 방지 / 증빙 누락 방지 / 자동 장부 생성
-- e.g. 은행 출금 55,000원 → 영수증 OCR 55,000원 → 자동 연결
-
-### 7) 회계 장부
-- 일반전표 (전표번호 · 거래일자 · 거래처 · 계정과목 · 공급가액 · 부가세 · 합계금액 · 결제수단)
-- 매출 장부 (매출 조회 · 집계 · 거래처별 조회)
-- 비용 장부 (비용 조회 · 집계 · 계정과목별 조회)
-
-### 8) 대시보드
-- 실시간 현황: 오늘 매출 · 이번 달 매출 · 이번 달 비용 · 예상 순이익 · 예상 부가세
-- 그래프: 월별 매출 · 비용 · 순이익 추이 · 비용 비율 분석
+### 사용자 인증
+- 이메일 인증 기반 회원가입 / 소셜 로그인 (카카오 · 구글 · 네이버)
+- JWT 무상태 인증 + axios 인터셉터 자동 첨부
+- **역할별 로그인 리다이렉트** — admin/accountant → 통합 대시보드, employee → 알림 센터
+- **사업장 가입 요청** — 직원이 기존 사업장에 참여 요청 → 관리자 승인 시 Employee 자동 생성
 
 ---
 
 ## 실시간 처리 구조
 
-본 시스템은 **FastAPI(Python) + Next.js(TypeScript)** 이중 서버 구조로 구성되며, 클라이언트-서버 간 실시간 통신을 위해 **Socket.IO**를 적용하였습니다.
-
 ```
 사용자 브라우저
   │
   ├─ HTTP 요청 (REST API)
-  │    └─ axios 인스턴스 (frontend/src/lib/api.ts)
+  │    └─ axios (frontend/src/lib/api.ts)
   │         └─ FastAPI 라우터 (backend/routers/)
   │              └─ SQLAlchemy ORM → MySQL DB
   │
   └─ WebSocket (실시간 이벤트)
        └─ Socket.IO 클라이언트 (frontend/src/lib/socket.ts)
             └─ Socket.IO 서버 (backend/core/socket.py)
+                 └─ FastAPI 내 /socket.io 경로에 마운트
 ```
-
-| 흐름 | 설명 |
-|------|------|
-| 거래 내역 조회 | REST API 호출 → FastAPI가 MySQL 조회 → JSON 응답. 필터·페이지네이션은 클라이언트에서 처리 |
-| 영수증 OCR | 이미지 업로드 → upload.py 저장 → ocr_service.py(EasyOCR) 텍스트 추출 → 구조화 JSON 반환 |
-| AI 회계 비서 | /api/ai/chat → llm_service.py LLM 호출 → 실시간 재무 데이터 컨텍스트 삽입 → 답변 생성 |
-| 실시간 알림 | 거래 등록·OCR 완료 등 서버 이벤트 → Socket.IO Push 방식으로 즉시 전달 |
 
 ---
 
@@ -303,65 +363,116 @@ accounting-platform/
 1. 사용자 이메일·비밀번호 입력
 2. POST /api/auth/login
 3. FastAPI: DB 조회 → bcrypt 검증
-4. JWT Access Token 발급 (core/security.py)
+4. JWT Access Token 발급
 5. 프론트엔드: localStorage 저장
-6. 이후 요청: axios 인터셉터 → Authorization: Bearer <JWT> 자동 첨부
-7. FastAPI: deps.py get_current_user() 토큰 검증 → 요청 처리
+6. 이후 요청: Authorization: Bearer <JWT> 자동 첨부
+7. FastAPI: get_current_user() 토큰 검증 → 요청 처리
 ```
 
-### 소셜 로그인 (카카오 · 구글)
+### 소셜 로그인 (카카오 · 구글 · 네이버)
 ```
 1. 로그인 버튼 클릭 → GET /api/auth/{provider}/login
 2. FastAPI: OAuth 인가 URL 생성 → Provider 리다이렉트
-3. Provider 인증 완료 → 백엔드 콜백 URL 리다이렉트
-   GET /api/auth/{provider}/callback?code=...
-4. FastAPI: Authorization Code → Provider Access Token 교환
+3. Provider 인증 완료 → 백엔드 콜백 리다이렉트
+4. FastAPI: Authorization Code → Access Token 교환
            → 사용자 정보 조회 → DB 등록 또는 기존 계정 연동
            → 자체 JWT 발급
 5. /auth/callback?token=<JWT> 리다이렉트
-6. 프론트엔드: URL에서 토큰 추출 → localStorage 저장 → 대시보드 이동
+6. 프론트엔드: 토큰 추출 → localStorage 저장 → 대시보드 이동
 ```
-
-### 보안 설계 포인트
-- JWT Payload에 `user_id`만 포함하여 민감 정보 노출 최소화
-- 카카오 Client Secret 조건부 첨부 (앱 설정에 따라 자동 대응)
-- 이메일 인증 완료 후에만 로그인 허용 (`email_verification` 모델 분리)
-- Pydantic Settings `extra='forbid'` 설정으로 미등록 환경변수 사용 차단
 
 ---
 
 ## 프론트 화면 구성
 
-Next.js 15 App Router 기반으로 구성되었으며, 전 페이지 **다크 · 라이트 테마** 전환을 지원합니다.
+Next.js 15 App Router 기반, 전 페이지 **다크 · 라이트 테마** 지원.
 
+### 통합관리
 | 화면 | 경로 | 주요 기능 |
 |------|------|-----------|
-| 랜딩 | `/` | 서비스 소개, 로그인 유도 |
-| 로그인 | `/login` | 이메일 · 소셜 로그인 |
-| 회원가입 | `/register` | 이메일 인증 기반 가입 |
-| 대시보드 홈 | `/dashboard` | AI 회계 비서 위젯, 요약 수치 |
-| AI 회계 비서 | `/dashboard/ai` | 전용 채팅, 빠른 질문 버튼 |
-| 회계 장부 | `/dashboard/ledger` | 거래 목록, 기간·유형·카테고리 필터, 10건 페이지네이션 |
-| 영수증 OCR | `/dashboard/ocr` | 이미지 업로드 → 자동 추출 → 장부 등록 |
-| 경영 분석 | `/dashboard/analytics` | 12개월 바 차트, 비용 구성 비율, 순이익률 KPI |
-| 경비 정산 | `/dashboard/expense` | 경비 내역 조회 및 정산 |
-| 카드 매출 | `/dashboard/card` | 카드 매출 내역 조회 |
-| 부가세 신고 | `/dashboard/vat` | 부가세 집계 및 신고 보조 |
-| 사업자 정보 | `/dashboard/business` | 사업자 등록번호 등 기본 정보 |
-| 프로필 · 보안 · 설정 | `/dashboard/profile` 외 | 계정 관리, 비밀번호 변경, 테마 설정 |
-| Pro 플랜 | `/dashboard/pro` | 유료 기능 소개 및 결제 |
+| 통합 대시보드 | `/dashboard/integrated` | 4개 분야 KPI 요약, 알림 배너 |
+| 알림 센터 | `/dashboard/integrated/alerts` | 미처리 알림, 가입 승인 요청 |
+| 계정 관리 | `/dashboard/integrated/accounts` | 구성원 계정 관리 |
+| 권한 관리 | `/dashboard/integrated/access` | 역할·권한 설정 |
+| 가입 대기 | `/dashboard/integrated/pending` | 직원 가입 요청 대기 목록 |
+| 데이터 내보내기 | `/dashboard/integrated/export` | CSV 일괄 다운로드 |
 
-### UI 설계 원칙
-- 연노란 배경 + 골드 테두리(`#C49A30`) + 본문 텍스트 색상 일관 적용
-- 데이터 없음 상태(Empty State): 전 페이지 수평 · 수직 정중앙 배열
-- 인터랙션 요소: `transition: all 0.15s` 기반 부드러운 상태 전환
-- 계산기 형태의 전용 SVG 로고: 5개 위치(랜딩 · 로그인 · 회원가입 · 사이드바 · 레이아웃) 일관 적용
+### 회계
+| 화면 | 경로 | 주요 기능 |
+|------|------|-----------|
+| 회계 대시보드 | `/dashboard/accounting` | 매출·비용·순이익 KPI |
+| 거래처 관리 | `/dashboard/accounting/vendors` | 공급업체·고객사 관리 |
+| 매출채권·매입채무 | `/dashboard/accounting/ar-ap` | 미수금·미지급금 |
+| 세금계산서 | `/dashboard/accounting/tax-invoice` | 발행·관리 |
+| 견적서 | `/dashboard/accounting/estimates` | 견적 발행 |
+| 예산 관리 | `/dashboard/accounting/budget` | 예산 집행률 |
+| 재무제표 | `/dashboard/accounting/statements` | 손익·대차 분석 |
+| AI 회계 비서 | `/dashboard/ai` | 자연어 재무 Q&A |
+| 회계 장부 | `/dashboard/ledger` | 거래 내역 조회 |
+| 영수증 OCR | `/dashboard/ocr` | 영수증 자동 인식 |
+| 부가세 신고 | `/dashboard/vat` | 신고 체크리스트 |
+
+### 인사
+| 화면 | 경로 | 주요 기능 |
+|------|------|-----------|
+| 인사 대시보드 | `/dashboard/hr` | 인사 현황 요약 |
+| 직원 관리 | `/dashboard/hr/employees` | 직원 등록·조회 |
+| 근태·휴가 | `/dashboard/hr/leave` | 출결·휴가 관리 |
+| 급여 관리 | `/dashboard/hr/payroll` | 급여 계산·지급 |
+| 부서 관리 | `/dashboard/hr/departments` | 조직 구성 |
+| 계약 관리 | `/dashboard/hr/contracts` | 근로계약 관리 |
+
+### 생산
+| 화면 | 경로 | 주요 기능 |
+|------|------|-----------|
+| 생산 대시보드 | `/dashboard/production` | 생산 현황 요약 |
+| 품목 관리 | `/dashboard/production/items` | 제품·원자재 등록 |
+| BOM 관리 | `/dashboard/production/bom` | 자재 구성표 |
+| 생산 지시 | `/dashboard/production/orders` | 작업 지시·추적 |
+| 재고 현황 | `/dashboard/production/inventory` | 입출고·재고 |
+| 생산 실적 | `/dashboard/production/results` | 실적 분석 |
+| 원가 분석 | `/dashboard/production/cost` | 단위 원가 계산 |
+| 생산 효율 | `/dashboard/production/efficiency` | 가동률·불량률 |
+| 품질 감사 | `/dashboard/production/audit` | 품질 검사 이력 |
+
+### 유통
+| 화면 | 경로 | 주요 기능 |
+|------|------|-----------|
+| 유통 대시보드 | `/dashboard/distribution` | 물류 현황 요약 |
+| 주문 관리 | `/dashboard/distribution/orders` | 발주·수주 처리 |
+| 배송 현황 | `/dashboard/distribution/deliveries` | 배송 추적 |
+| 차량 관리 | `/dashboard/distribution/vehicles` | 배송 차량 등록 |
+| 경로 최적화 | `/dashboard/distribution/route` | AI 경로 제안 |
+| 배송비 정산 | `/dashboard/distribution/fee` | 운임 정산 |
+| 반품 관리 | `/dashboard/distribution/returns` | 반품 처리 |
+| 유통 분석 | `/dashboard/distribution/analytics` | 물류 성과 분석 |
+
+### 설정 · 계정
+| 화면 | 경로 | 주요 기능 |
+|------|------|-----------|
+| 사업장 관리 | `/dashboard/business` | 사업장 정보, 가입 요청 |
+| 프로필 | `/dashboard/profile` | 계정 정보, 사진 |
+| 보안 설정 | `/dashboard/security` | 비밀번호 변경 |
+| 환경 설정 | `/dashboard/settings` | 테마, 알림 설정 |
+| 도움말 | `/dashboard/help` | 분야별 빠른 시작 가이드 + FAQ |
+| Pro 플랜 | `/dashboard/pro` | 유료 기능 소개 |
+
+---
+
+## UI 설계 원칙
+
+- 연노란 배경 + 골드 테두리(`#C49A30`) + 일관된 텍스트 색상
+- 분야별 색상 — 통합관리 분홍 · 회계 황금 · 인사 파랑 · 생산 초록 · 유통 보라
+- 버튼·뱃지: `rgba(R,G,B,0.12)` 배경 + `rgba(R,G,B,0.40)` 테두리
+- 데이터 없음(Empty State): 전 페이지 수평·수직 중앙 정렬
+- 인터랙션: `transition: all 0.15s` 부드러운 상태 전환
+- 계산기 형태 전용 SVG 로고 일관 적용
 
 ---
 
 ## AI 탐지 대상
 
-### 1) 영수증 OCR 탐지 항목 (`services/ocr_service.py`)
+### 1) 영수증 OCR (`services/ocr_service.py`)
 
 | 탐지 대상 | 설명 |
 |-----------|------|
@@ -371,9 +482,7 @@ Next.js 15 App Router 기반으로 구성되었으며, 전 페이지 **다크 ·
 | 결제 수단 | 카드·현금 구분 |
 | 품목 내역 | 개별 상품명 및 단가 목록 추출 |
 
-추출된 데이터는 구조화 JSON으로 변환되어 장부에 자동 등록됩니다. 인식 불가 항목은 "인식된 구조화 정보가 없습니다" 안내와 함께 원문 텍스트를 제공합니다.
-
-### 2) AI 회계 비서 탐지 · 분석 항목 (`services/llm_service.py`, `routers/ai.py`)
+### 2) AI 회계 비서 (`services/llm_service.py`, `routers/ai.py`)
 
 | 탐지 · 분석 대상 | 예시 질문 |
 |-----------------|-----------|
@@ -382,11 +491,6 @@ Next.js 15 App Router 기반으로 구성되었으며, 전 페이지 **다크 ·
 | 순이익률 저하 위험 | "순이익률을 개선하려면 어떻게 해야 할까요?" |
 | 세금 신고 일정 | "부가세 신고 마감일이 언제인가요?" |
 | 장기 미수금 여부 | "장기 미수금이 있나요?" |
-| 연간 세금 예측 | "올해 예상 세금은 얼마인가요?" |
-
-### 3) 탐지 한계 및 보완 방식
-- **OCR**: 이미지 해상도·조명·필기체에 따라 인식률이 저하될 수 있으며, 사용자가 수동으로 수정 후 장부에 등록할 수 있도록 편집 화면을 제공합니다.
-- **LLM**: DB에 저장된 실제 거래 데이터 기반으로 답변하되, 세무·법률 판단이 필요한 사안은 전문가 상담을 권고하는 면책 문구를 함께 출력합니다.
 
 ---
 
@@ -394,11 +498,12 @@ Next.js 15 App Router 기반으로 구성되었으며, 전 페이지 **다크 ·
 
 | 효과 | 설명 |
 |------|------|
-| 회계 업무 자동화 | 영수증 촬영 한 번으로 OCR이 판매점·날짜·금액을 자동 추출하고 장부에 즉시 등록. 수기 입력 반복 작업 제거 |
-| AI 회계 조언 | 자연어 질문으로 재무 데이터 기반 전문가 수준 답변. 회계 지식 없어도 즉시 사용 가능 |
-| 실시간 재무 파악 | 매출·비용·순이익 KPI 카드 + 12개월 추이 차트로 사업 흐름 즉각 파악 |
-| 세무 신고 부담 완화 | 카드매출·은행거래 자동 집계, 부가세 신고 기초 자료 자동 제공 |
-| 보안 · 확장성 확보 | JWT 무상태 인증 + 소셜 로그인 + FastAPI 비동기 처리로 접근성·보안·성능 동시 확보 |
+| 회계 업무 자동화 | 영수증 촬영 한 번으로 OCR이 자동 추출하고 장부에 즉시 등록 |
+| AI 회계 조언 | 자연어 질문으로 재무 데이터 기반 전문가 수준 답변 |
+| 통합 업무 관리 | 회계·인사·생산·유통을 하나의 플랫폼에서 처리 |
+| 실시간 재무 파악 | 4개 분야 KPI 카드 + 추이 차트로 사업 흐름 즉각 파악 |
+| 세무 신고 부담 완화 | 카드매출·은행거래 자동 집계, 부가세 기초 자료 자동 제공 |
+| 보안 · 확장성 확보 | JWT 무상태 인증 + 소셜 로그인 + FastAPI 비동기 처리 |
 
 ---
 
@@ -408,7 +513,8 @@ Next.js 15 App Router 기반으로 구성되었으며, 전 페이지 **다크 ·
 2. **카드사 API 연동** — 실시간 카드 매출 수집
 3. **전자 세금계산서 연동**
 4. **홈택스 연동** — 매입·매출 자료 자동 수집
-5. **세무법령 데이터 자료실 CRUD**
+5. **모바일 앱** — React Native 기반 iOS/Android 클라이언트
+6. **멀티 사업장 연결 고도화** — 프랜차이즈 본부·지점 구조 지원
 
 ---
 
@@ -426,15 +532,16 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# .env 파일에서 DB, SECRET_KEY, OPENAI_API_KEY 등 입력
-uvicorn main:app --reload
+# .env 파일에서 DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, SECRET_KEY, OPENAI_API_KEY 등 입력
+uvicorn main:app --reload --port 8002
 ```
 
 ### 프론트엔드
 ```bash
 cd frontend
 npm install
-# .env.local 파일 생성: NEXT_PUBLIC_API_URL=http://localhost:8000
+# .env.local 파일 생성
+echo "NEXT_PUBLIC_API_URL=http://localhost:8002" > .env.local
 npm run dev
 ```
 
@@ -444,14 +551,15 @@ npm run dev
 
 | 변수 | 위치 | 설명 |
 |------|------|------|
-| `NEXT_PUBLIC_API_URL` | frontend `.env.local` | 백엔드 서버 URL |
+| `NEXT_PUBLIC_API_URL` | frontend `.env.local` | 백엔드 서버 URL (기본: http://localhost:8002) |
 | `DB_HOST` ~ `DB_NAME` | backend `.env` | MySQL 접속 정보 |
 | `SECRET_KEY` | backend `.env` | JWT 서명 키 |
 | `OPENAI_API_KEY` | backend `.env` | AI 회계 비서 LLM |
 | `KAKAO_CLIENT_ID/SECRET` | backend `.env` | 카카오 OAuth |
 | `GOOGLE_CLIENT_ID/SECRET` | backend `.env` | 구글 OAuth |
+| `NAVER_CLIENT_ID/SECRET` | backend `.env` | 네이버 OAuth |
 | `FRONTEND_URL` | backend `.env` | CORS 허용 도메인 |
 
 ---
 
-© 2026 SelfERP — 소상공인을 위한 가장 친절한 회계 ERP
+© 2026 SelfERP — 소상공인을 위한 AI 통합 ERP

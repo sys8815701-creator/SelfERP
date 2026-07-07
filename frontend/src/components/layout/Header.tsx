@@ -27,12 +27,6 @@ export default function Header() {
         <ChevronDown size={14} />
       </button>
 
-      {/* 거래 추가 버튼 */}
-      <button className="flex items-center gap-2 bg-slate-800 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-slate-700 transition">
-        <Plus size={15} />
-        거래 추가
-      </button>
-
       {/* 알림 */}
       <button className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition">
         <Bell size={18} className="text-slate-600" />

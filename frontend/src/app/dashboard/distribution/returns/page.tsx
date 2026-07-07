@@ -59,14 +59,14 @@ export default function ReturnsPage() {
   const restockCount = returns.filter(r => r.is_restocked).length;
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>반품 처리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>반품 접수 및 재고 복원을 관리합니다. · {returns.length}건</p>
         </div>
         <button onClick={() => { setForm({ delivery_id: "", item_id: "", item_name: "", return_qty: "", reason: "기타", return_date: new Date().toISOString().split("T")[0], note: "", restock: false }); setShowModal(true); }}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 반품 등록
         </button>
       </div>
@@ -75,12 +75,12 @@ export default function ReturnsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px", marginBottom: "22px" }}>
         {[
           { label: "총 반품 건수", value: returns.length },
-          { label: "총 반품 수량", value: fmt(totalQty), warn: totalQty > 0 },
+          { label: "총 반품 수량", value: fmt(totalQty) },
           { label: "재고 복원 완료", value: `${restockCount}건` },
         ].map(c => (
-          <div key={c.label} style={{ backgroundColor: "var(--bg-surface)", border: `1px solid ${c.warn ? "#FCA5A5" : "var(--border)"}`, borderRadius: "14px", padding: "18px 22px" }}>
+          <div key={c.label} style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "18px 22px" }}>
             <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{c.label}</p>
-            <p style={{ fontSize: "24px", fontWeight: 900, color: c.warn ? "#DC2626" : "var(--text-primary)" }}>{c.value}</p>
+            <p style={{ fontSize: "24px", fontWeight: 900, color: "var(--text-primary)" }}>{c.value}</p>
           </div>
         ))}
       </div>
@@ -97,22 +97,22 @@ export default function ReturnsPage() {
           </thead>
           <tbody>
             {loading ? <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
-            : returns.length === 0 ? <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 반품이 없습니다.</td></tr>
+            : returns.length === 0 ? <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 반품이 없습니다</td></tr>
             : returns.map((r, i) => (
               <tr key={r.id} style={{ borderBottom: i < returns.length - 1 ? "1px solid var(--border-subtle)" : "none" }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--bg-surface-2)")}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}>
                 <td style={{ padding: "12px 14px", fontSize: "12px", color: "var(--text-muted)" }}>{r.return_date}</td>
                 <td style={{ padding: "12px 14px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{r.item_display_name || r.item_name || "—"}</td>
-                <td style={{ padding: "12px 14px", fontSize: "13px", fontWeight: 700, color: "#DC2626" }}>{fmt(r.return_qty)}</td>
+                <td style={{ padding: "12px 14px", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmt(r.return_qty)}</td>
                 <td style={{ padding: "12px 14px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", backgroundColor: `${REASON_COLOR[r.reason] || "#6B7280"}20`, color: REASON_COLOR[r.reason] || "#6B7280" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", backgroundColor: `${REASON_COLOR[r.reason] || "#6B7280"}1E`, border: `1px solid ${REASON_COLOR[r.reason] || "#6B7280"}60`, color: REASON_COLOR[r.reason] || "#6B7280" }}>
                     {r.reason}
                   </span>
                 </td>
                 <td style={{ padding: "12px 14px", fontSize: "12px", color: "var(--text-muted)" }}>{r.delivery_no || "—"}</td>
                 <td style={{ padding: "12px 14px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", backgroundColor: r.is_restocked ? "#DCFCE7" : "#F3F4F6", color: r.is_restocked ? "#15803D" : "#6B7280" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", backgroundColor: r.is_restocked ? "rgba(21,128,61,0.12)" : "rgba(107,114,128,0.10)", border: r.is_restocked ? "1px solid rgba(21,128,61,0.40)" : "1px solid rgba(107,114,128,0.30)", color: r.is_restocked ? "#15803D" : "#6B7280" }}>
                     {r.is_restocked ? "완료" : "미처리"}
                   </span>
                 </td>
@@ -188,7 +188,7 @@ export default function ReturnsPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={handleSave} disabled={saving || !form.return_qty || !form.return_date}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "반품 등록"}
               </button>
               <button onClick={() => setShowModal(false)} style={{ padding: "11px 20px", backgroundColor: "var(--bg-surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>취소</button>

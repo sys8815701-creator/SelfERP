@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import random, string
@@ -17,11 +17,18 @@ from models.todo import Todo
 from models.card_sale import CardSale
 from models.bank_transaction import BankTransaction
 from models.vendor import Vendor
-from schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
+from models.employee import Employee
+from models.business_join_request import BusinessJoinRequest
+from schemas.user import UserCreate, UserLogin, UserResponse, UserFullResponse, UserRoleUpdate, TokenResponse
 from utils.email import send_verification_email
 
 class UserProfileUpdate(BaseModel):
-    name: Optional[str] = None
+    name:            Optional[str] = None
+    phone:           Optional[str] = None
+    department_name: Optional[str] = None
+    position_name:   Optional[str] = None
+    employee_number: Optional[str] = None
+    hire_date:       Optional[str] = None
 
 class PasswordChange(BaseModel):
     current_password: str
@@ -119,11 +126,30 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         email=user_data.email,
         password=hash_password(user_data.password),
         name=user_data.name,
-        role=user_data.role
+        role=user_data.role,
+        phone=user_data.phone,
+        department_name=user_data.department_name,
+        position_name=user_data.position_name,
+        employee_number=user_data.employee_number,
+        hire_date=user_data.hire_date,
+        is_active=0,  # 승인 대기 (관리자 승인 후 활성화)
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # 사업장 가입 요청 생성 (business_number가 제공된 경우)
+    if user_data.business_number:
+        raw = user_data.business_number.replace("-", "")
+        fmt = f"{raw[:3]}-{raw[3:5]}-{raw[5:]}" if len(raw) == 10 else raw
+        biz = db.query(Business).filter(
+            (Business.business_number == raw) | (Business.business_number == fmt)
+        ).first()
+        if biz:
+            join_req = BusinessJoinRequest(user_id=user.id, business_id=biz.id)
+            db.add(join_req)
+            db.commit()
+
     return user
 
 # 로그인
@@ -132,6 +158,8 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not verify_password(user_data.password, user.password):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+    if user.is_active == 0:
+        raise HTTPException(status_code=403, detail="계정 승인 대기 중입니다. 관리자의 승인을 기다려주세요.")
 
     token = create_access_token(data={"sub": str(user.id), "role": user.role})
     return {
@@ -140,20 +168,25 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         "user": user
     }
 
+# 현재 로그인 사용자의 소속 부서명 반환 (로그인 후 대시보드 라우팅 용)
+@router.get("/my-department")
+def get_my_department(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    emp = db.query(Employee).filter(Employee.user_id == current_user.id).first()
+    if emp and emp.department:
+        return {"department_name": emp.department.name, "role": current_user.role}
+    return {"department_name": None, "role": current_user.role}
+
+
 # 내 정보 조회
-@router.get("/me", response_model=UserResponse)
-def get_me(token: str, db: Session = Depends(get_db)):
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+@router.get("/me", response_model=UserFullResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
-    return user
-
-# 내 이름 수정
-@router.patch("/me", response_model=UserResponse)
+# 내 정보 수정
+@router.patch("/me", response_model=UserFullResponse)
 def update_me(
     data: UserProfileUpdate,
     current_user: User = Depends(get_current_user),
@@ -164,6 +197,16 @@ def update_me(
         if not name:
             raise HTTPException(status_code=400, detail="이름을 입력해주세요.")
         current_user.name = name
+    if data.phone is not None:
+        current_user.phone = data.phone or None
+    if data.department_name is not None:
+        current_user.department_name = data.department_name or None
+    if data.position_name is not None:
+        current_user.position_name = data.position_name or None
+    if data.employee_number is not None:
+        current_user.employee_number = data.employee_number or None
+    if data.hire_date is not None:
+        current_user.hire_date = data.hire_date or None
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -247,4 +290,84 @@ def delete_account(
     db.delete(current_user)
     db.commit()
 
+    return {"message": "계정이 삭제되었습니다."}
+
+
+# 사용자 목록 조회 (관리자 전용) - 활성 계정만
+@router.get("/users", response_model=List[UserFullResponse])
+def list_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    return db.query(User).filter(User.is_active != 0).order_by(User.created_at).all()
+
+
+# 사용자 권한 변경 (관리자 전용)
+@router.patch("/users/{user_id}/role")
+def change_user_role(
+    user_id: int,
+    data: UserRoleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="자신의 권한은 변경할 수 없습니다.")
+    if data.role not in ("admin", "accountant", "employee"):
+        raise HTTPException(status_code=400, detail="유효하지 않은 권한입니다.")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    target.role = data.role
+    db.commit()
+    return {"message": "권한이 변경되었습니다.", "user_id": target.id, "role": target.role}
+
+
+# 승인 대기 중인 사용자 목록 (관리자 전용)
+@router.get("/users/pending", response_model=List[UserFullResponse])
+def list_pending_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    return db.query(User).filter(User.is_active == 0).order_by(User.created_at).all()
+
+
+# 사용자 계정 승인 (관리자 전용)
+@router.patch("/users/{user_id}/approve")
+def approve_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    target.is_active = 1
+    db.commit()
+    return {"message": "계정이 승인되었습니다.", "user_id": target.id}
+
+
+# 사용자 계정 삭제/거절 (관리자 전용)
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="자신의 계정은 삭제할 수 없습니다.")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    db.delete(target)
+    db.commit()
     return {"message": "계정이 삭제되었습니다."}

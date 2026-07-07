@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Plus, Search, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import api from "@/lib/api";
 import QuickJournalModal from "../QuickJournalModal";
+import { useRole, canWrite } from "@/hooks/useRole";
 
 interface Transaction {
   id: number; date: string; description: string;
@@ -21,11 +22,12 @@ const PERIOD_TYPES: { key: PeriodType; label: string }[] = [
   { key: "daily",    label: "일별" },
   { key: "monthly",  label: "월별" },
   { key: "quarterly",label: "분기별" },
-  { key: "halfyear", label: "상·하반기" },
+  { key: "halfyear", label: "상 · 하반기" },
   { key: "yearly",   label: "연도별" },
 ];
 
 function LedgerContent() {
+  const role = useRole();
   const searchParams = useSearchParams();
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,9 +117,11 @@ function LedgerContent() {
             <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>회계 장부</h1>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "2px" }}>전체 거래 내역을 조회하고 관리하세요</p>
           </div>
-          <button onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "10px", padding: "10px 18px", fontSize: "13px", fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 8px rgba(255,190,80,0.3)" }}>
-            <Plus size={15} /> 거래 추가
-          </button>
+          {canWrite(role) && (
+            <button onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "10px", padding: "10px 18px", fontSize: "13px", fontWeight: 800, cursor: "pointer" }}>
+              <Plus size={15} /> 거래 추가
+            </button>
+          )}
         </div>
 
         {/* 요약 */}
@@ -218,7 +222,7 @@ function LedgerContent() {
               {loading ? (
                 <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>불러오는 중...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>거래 내역이 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>거래 내역이 없습니다</td></tr>
               ) : paged.map((tx, i) => {
                 const d = new Date(tx.date + "T00:00:00");
                 return (

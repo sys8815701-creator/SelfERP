@@ -69,14 +69,14 @@ export default function InventoryLogPage() {
   };
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>입출고 이력</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>자재 입출고 이력을 조회하고 등록합니다. · {logs.length}건</p>
         </div>
         <button onClick={() => setShowModal(true)}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 입출고 등록
         </button>
       </div>
@@ -109,7 +109,7 @@ export default function InventoryLogPage() {
             {loading ? (
               <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>입출고 이력이 없습니다.</td></tr>
+              <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>입출고 이력이 없습니다</td></tr>
             ) : logs.map((log, i) => {
               const tc = LOG_TYPE_COLOR[log.log_type] || { bg: "#F3F4F6", color: "#374151" };
               const isNeg = parseFloat(log.quantity) < 0;
@@ -189,7 +189,7 @@ export default function InventoryLogPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={handleSave} disabled={saving || !form.item_id || !form.quantity}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "등록"}
               </button>
               <button onClick={() => setShowModal(false)}

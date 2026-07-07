@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
 
 const EMPTY_FORM = { product_id: "", version: "1.0", description: "" };
 const EMPTY_LINE = { item_id: "", quantity: "", unit: "", note: "" };
@@ -17,6 +18,7 @@ export default function BomPage() {
   const [lines, setLines]         = useState<any[]>([{ ...EMPTY_LINE }]);
   const [saving, setSaving]       = useState(false);
   const [deleting, setDeleting]   = useState(false);
+  const [modal, setModal]         = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
   const headers = () => ({ "X-Business-Id": bizId() });
@@ -62,15 +64,14 @@ export default function BomPage() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("BOM을 삭제하시겠습니까?")) return;
-    setDeleting(true);
-    try {
-      await api.delete(`/api/production/boms/${id}`, { headers: headers() });
-      setSelected(null);
-      await load();
-    } catch { /* ignore */ }
-    finally { setDeleting(false); }
+  const handleDelete = (id: number) => {
+    setModal({ title: "삭제 확인", message: "BOM을 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        setDeleting(true);
+        try { await api.delete(`/api/production/boms/${id}`, { headers: headers() }); setSelected(null); await load(); }
+        catch { /* ignore */ }
+        finally { setDeleting(false); }
+      } });
   };
 
   const addLine = () => setLines(p => [...p, { ...EMPTY_LINE }]);
@@ -82,14 +83,14 @@ export default function BomPage() {
   const materials  = items.filter(i => i.item_type === "원자재" || i.item_type === "반제품" || i.item_type === "소모품");
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>자재명세서 (BOM)</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>제품 구성 자재를 정의합니다. · {boms.length}건</p>
         </div>
         <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + BOM 등록
         </button>
       </div>
@@ -109,7 +110,7 @@ export default function BomPage() {
               {loading ? (
                 <tr><td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
               ) : boms.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 BOM이 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 BOM이 없습니다</td></tr>
               ) : boms.map((bom, i) => (
                 <tr key={bom.id}
                   onClick={() => setSelected(selected?.id === bom.id ? null : bom)}
@@ -158,7 +159,7 @@ export default function BomPage() {
                 </div>
               ))}
               {(!selected.lines || selected.lines.length === 0) && (
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", padding: "12px", textAlign: "center" }}>등록된 자재가 없습니다.</p>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", padding: "12px", textAlign: "center" }}>등록된 자재가 없습니다</p>
               )}
             </div>
           </div>
@@ -202,7 +203,7 @@ export default function BomPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>구성 자재</p>
                 <button onClick={addLine}
-                  style={{ fontSize: "12px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "6px", padding: "4px 10px", cursor: "pointer" }}>
+                  style={{ fontSize: "12px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "6px", padding: "4px 10px", cursor: "pointer" }}>
                   + 자재 추가
                 </button>
               </div>
@@ -227,7 +228,7 @@ export default function BomPage() {
 
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={handleSave} disabled={saving || !form.product_id}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "저장"}
               </button>
               <button onClick={() => setShowModal(false)}

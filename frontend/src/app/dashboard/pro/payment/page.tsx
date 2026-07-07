@@ -29,10 +29,10 @@ export default function PaymentPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (cardNumber.replace(/\s/g, "").length < 16) e.cardNumber = "카드 번호 16자리를 입력해 주세요.";
-    if (expiry.length < 5) e.expiry = "유효기간을 MM/YY 형식으로 입력해 주세요.";
-    if (cvc.length < 3) e.cvc = "CVC 3자리를 입력해 주세요.";
-    if (!holder.trim()) e.holder = "카드 소유자 이름을 입력해 주세요.";
+    if (cardNumber.replace(/\s/g, "").length < 16) e.cardNumber = "카드 번호 16자리를 입력해 주세요";
+    if (expiry.length < 5) e.expiry = "유효기간을 MM/YY 형식으로 입력해 주세요";
+    if (cvc.length < 3) e.cvc = "CVC 3자리를 입력해 주세요";
+    if (!holder.trim()) e.holder = "카드 소유자 이름을 입력해 주세요";
     setErrors(e);
     return Object.keys(e).length === 0;
   };

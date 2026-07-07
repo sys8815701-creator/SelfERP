@@ -28,23 +28,23 @@ export default function DistributionAnalyticsPage() {
   const maxAmt = Math.max(...monthly.map((m: any) => m.amount), 1);
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>유통 분석</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>배송 완료율, 반품률, 월별 수주 현황을 분석합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>배송 완료율, 반품률, 월별 수주 현황을 분석합니다</p>
       </div>
 
       {/* KPI 카드 */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "28px" }}>
         {[
-          { label: "총 배송건",    value: fmt(data?.total_deliveries),    warn: false },
-          { label: "배송 완료율",  value: `${data?.delivery_rate ?? 0}%`, warn: (data?.delivery_rate ?? 100) < 70 },
-          { label: "총 반품건",    value: fmt(data?.total_returns),       warn: (data?.total_returns ?? 0) > 0 },
-          { label: "반품률",       value: `${data?.return_rate ?? 0}%`,   warn: (data?.return_rate ?? 0) > 10 },
+          { label: "총 배송건",    value: fmt(data?.total_deliveries) },
+          { label: "배송 완료율",  value: `${data?.delivery_rate ?? 0}%` },
+          { label: "총 반품건",    value: fmt(data?.total_returns) },
+          { label: "반품률",       value: `${data?.return_rate ?? 0}%` },
         ].map(c => (
-          <div key={c.label} style={{ backgroundColor: "var(--bg-surface)", border: `1px solid ${c.warn ? "#FCA5A5" : "var(--border)"}`, borderRadius: "14px", padding: "18px 22px" }}>
+          <div key={c.label} style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "18px 22px" }}>
             <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{c.label}</p>
-            <p style={{ fontSize: "26px", fontWeight: 900, color: c.warn ? "#DC2626" : "var(--text-primary)" }}>{c.value}</p>
+            <p style={{ fontSize: "26px", fontWeight: 900, color: "var(--text-primary)" }}>{c.value}</p>
           </div>
         ))}
       </div>
@@ -79,11 +79,11 @@ export default function DistributionAnalyticsPage() {
           <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "16px" }}>배송 현황 요약</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {[
-              { label: "완료", count: data?.completed_deliveries ?? 0, color: "#15803D", bg: "#DCFCE7" },
-              { label: "미완료", count: (data?.total_deliveries ?? 0) - (data?.completed_deliveries ?? 0), color: "#D97706", bg: "#FEF9C3" },
-              { label: "반품", count: data?.total_returns ?? 0, color: "#DC2626", bg: "#FEF2F2" },
+              { label: "완료",   count: data?.completed_deliveries ?? 0,                                                              color: "#15803D", bg: "rgba(21,128,61,0.12)",  border: "1.5px solid rgba(21,128,61,0.40)" },
+              { label: "미완료", count: (data?.total_deliveries ?? 0) - (data?.completed_deliveries ?? 0), color: "#D97706", bg: "rgba(217,119,6,0.12)", border: "1.5px solid rgba(217,119,6,0.40)" },
+              { label: "반품",   count: data?.total_returns ?? 0,                                                                   color: "#DC2626", bg: "rgba(220,38,38,0.12)",  border: "1.5px solid rgba(220,38,38,0.40)" },
             ].map(row => (
-              <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", backgroundColor: row.bg, borderRadius: "10px" }}>
+              <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", backgroundColor: row.bg, border: row.border, borderRadius: "10px" }}>
                 <span style={{ fontSize: "13px", fontWeight: 600, color: row.color }}>{row.label}</span>
                 <span style={{ fontSize: "18px", fontWeight: 900, color: row.color }}>{fmt(row.count)}건</span>
               </div>
@@ -116,7 +116,7 @@ export default function DistributionAnalyticsPage() {
 
       {monthly.length === 0 && !loading && (
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "48px", textAlign: "center" }}>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>수주 데이터가 없습니다. 수주를 등록하면 분석이 표시됩니다.</p>
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>수주 데이터가 없습니다. 수주를 등록하면 분석이 표시됩니다</p>
         </div>
       )}
     </div>

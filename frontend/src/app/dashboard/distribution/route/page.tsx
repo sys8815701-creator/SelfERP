@@ -27,10 +27,10 @@ export default function RouteGroupingPage() {
   const groups: any[] = data?.groups ?? [];
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>경로 최적화</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>같은 날 배송 지역별로 묶어서 효율적인 배송 경로를 제안합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>같은 날 배송 지역별로 묶어서 효율적인 배송 경로를 제안합니다</p>
       </div>
 
       {/* 날짜 선택 */}
@@ -48,7 +48,7 @@ export default function RouteGroupingPage() {
         <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "48px" }}>불러오는 중...</p>
       ) : groups.length === 0 ? (
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "48px", textAlign: "center" }}>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>해당 날짜에 진행 중인 배송이 없습니다.</p>
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>해당 날짜에 진행 중인 배송이 없습니다</p>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>

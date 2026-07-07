@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
 
 const DEFAULT_CATEGORIES = [
   "매출", "카드매출", "기타수입",
@@ -45,6 +46,7 @@ export default function BudgetPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm]           = useState({ budget_year: year, budget_month: 1, category: "", btype: "expense", amount: "", note: "" });
   const [saving, setSaving]       = useState(false);
+  const [modal, setModal]         = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
 
@@ -88,7 +90,7 @@ export default function BudgetPage() {
         await api.put(`/api/accounting/budget/${editingId}`, { amount: body.amount, note: body.note }, { headers: h });
       } else {
         await api.post("/api/accounting/budget/", body, { headers: h }).catch(e => {
-          if (e.response?.status === 400) alert(e.response.data.detail);
+          if (e.response?.status === 400) setModal({ message: e.response.data.detail, variant: "error" });
           throw e;
         });
       }
@@ -98,10 +100,9 @@ export default function BudgetPage() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("예산 항목을 삭제하시겠습니까?")) return;
-    await api.delete(`/api/accounting/budget/${id}`, { headers: { "X-Business-Id": bizId() } });
-    await load();
+  const handleDelete = (id: number) => {
+    setModal({ title: "삭제 확인", message: "예산 항목을 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => { await api.delete(`/api/accounting/budget/${id}`, { headers: { "X-Business-Id": bizId() } }); await load(); } });
   };
 
   const monthly = data?.monthly || [];
@@ -113,15 +114,15 @@ export default function BudgetPage() {
   const totalActualExpense = monthly.reduce((s: number, m: any) => s + m.actual_expense, 0);
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       {/* 헤더 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>예산 관리</h1>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>월별 예산을 설정하고 실적과 비교합니다.</p>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>월별 예산을 설정하고 실적과 비교합니다</p>
         </div>
         <button onClick={() => openCreate()}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 예산 항목 등록
         </button>
       </div>
@@ -138,7 +139,7 @@ export default function BudgetPage() {
           {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m}월</option>)}
         </select>
         <button onClick={load}
-          style={{ padding: "8px 14px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ padding: "8px 14px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           조회
         </button>
       </div>
@@ -210,7 +211,8 @@ export default function BudgetPage() {
                   <td style={{ padding: "11px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{b.budget_month}월</td>
                   <td style={{ padding: "11px 14px" }}>
                     <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px",
-                      backgroundColor: b.btype === "revenue" ? "#DCFCE7" : "#FEF2F2",
+                      backgroundColor: b.btype === "revenue" ? "rgba(21,128,61,0.12)" : "rgba(220,38,38,0.12)",
+                      border: b.btype === "revenue" ? "1px solid rgba(21,128,61,0.40)" : "1px solid rgba(220,38,38,0.40)",
                       color: b.btype === "revenue" ? "#15803D" : "#DC2626" }}>
                       {b.btype === "revenue" ? "수입" : "지출"}
                     </span>
@@ -233,14 +235,16 @@ export default function BudgetPage() {
         </div>
       )}
 
-      {!loading && items.length === 0 && (
-        <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>
-          설정된 예산이 없습니다.<br />
-          <button onClick={() => openCreate()} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+      {!loading && items.length === 0 && monthly.length === 0 && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "280px", textAlign: "center", padding: "40px", color: "var(--text-muted)", fontSize: "13px" }}>
+          설정된 예산이 없습니다<br />
+          <button onClick={() => openCreate()} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
             첫 예산 항목 등록
           </button>
         </div>
       )}
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {/* 등록/수정 모달 */}
       {showModal && (
@@ -303,7 +307,7 @@ export default function BudgetPage() {
 
             <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
               <button onClick={handleSave} disabled={saving || !form.amount || (!editingId && !form.category)}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : editingId ? "수정 완료" : "등록"}
               </button>
               <button onClick={() => setShowModal(false)}

@@ -30,10 +30,10 @@ export default function DeliveryFeePage() {
   const maxFee = Math.max(...monthly.map((m: any) => m.total_fee), 1);
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>배송비 정산</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>완료된 배송의 차량별·월별 배송비를 집계합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>완료된 배송의 차량별 · 월별 배송비를 집계합니다</p>
       </div>
 
       {/* 필터 */}

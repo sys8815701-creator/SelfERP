@@ -53,14 +53,14 @@ export default function ProductionResultsPage() {
   const defectRate     = totalCompleted > 0 ? (totalDefect / totalCompleted * 100).toFixed(1) : "0.0";
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>생산 실적</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산 완료 실적을 등록하고 조회합니다. · {results.length}건</p>
         </div>
         <button onClick={() => setShowModal(true)}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 실적 등록
         </button>
       </div>
@@ -93,7 +93,7 @@ export default function ProductionResultsPage() {
             {loading ? (
               <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
             ) : results.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 실적이 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 실적이 없습니다</td></tr>
             ) : results.map((r, i) => {
               const rate = r.completed_qty > 0 ? (r.defect_qty / r.completed_qty * 100).toFixed(1) : "0.0";
               return (
@@ -135,7 +135,7 @@ export default function ProductionResultsPage() {
                     <option key={o.id} value={o.id}>{o.order_no || `#${o.id}`} - {o.product_name} (계획: {fmt(o.planned_qty)})</option>
                   ))}
                 </select>
-                {orders.length === 0 && <p style={{ fontSize: "11px", color: "#EF4444" }}>생산중 상태의 지시서가 없습니다.</p>}
+                {orders.length === 0 && <p style={{ fontSize: "11px", color: "#EF4444" }}>생산중 상태의 지시서가 없습니다</p>}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -162,7 +162,7 @@ export default function ProductionResultsPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={handleSave} disabled={saving || !form.order_id || !form.completed_qty || !form.completed_date}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "등록"}
               </button>
               <button onClick={() => setShowModal(false)}

@@ -8,7 +8,7 @@ function fmt(v: any) { return parseFloat(String(v ?? 0)).toLocaleString("ko-KR")
 
 type Alert = {
   id: string;
-  module: "생산" | "회계" | "유통" | "인사";
+  module: "생산" | "회계" | "유통" | "인사" | "통합";
   type: "danger" | "warning" | "info";
   icon: string;
   title: string;
@@ -53,6 +53,18 @@ export default function AlertCenterPage() {
     const ts = Date.now();
 
     await Promise.all([
+      // 통합 — 사업장 가입 요청 대기
+      api.get("/api/business/join-requests").then(r => {
+        const reqs: any[] = r.data ?? [];
+        if (reqs.length > 0)
+          newAlerts.push({
+            id: "join-requests", module: "통합", type: "info", icon: "🏢",
+            title: `사업장 가입 요청 ${reqs.length}건 대기 중`,
+            desc: `승인 대기 중인 직원 가입 요청이 있습니다`,
+            href: "/dashboard/integrated/pending",
+            ts,
+          });
+      }).catch(() => {}),
       // 생산 — 안전재고 부족
       api.get("/api/production/safety-stock-alerts", { headers: h }).then(r => {
         const items: any[] = r.data ?? [];
@@ -104,25 +116,24 @@ export default function AlertCenterPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const MODULES = ["전체", "생산", "회계", "유통", "인사"];
+  const MODULES = ["전체", "생산", "회계", "유통", "인사", "통합"];
   const visible = alerts.filter(a => !dismissed.has(a.id) && (filter === "전체" || a.module === filter));
   const hiddenCount = alerts.filter(a => dismissed.has(a.id)).length;
 
-  const TYPE_STYLE: Record<string, { bg: string; border: string; badge: string }> = {
-    danger:  { bg: "#FEF2F2", border: "#FCA5A5", badge: "#DC2626" },
-    warning: { bg: "#FFFBEB", border: "#FDE68A", badge: "#D97706" },
-    info:    { bg: "#EFF6FF", border: "#BFDBFE", badge: "#2563EB" },
+  const MODULE_COLORS: Record<string, string> = {
+    인사: "#3B82F6", 회계: "#F59E0B", 생산: "#10B981", 유통: "#8B5CF6", 통합: "#EC4899",
   };
 
   return (
-    <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "24px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>전사 알림 센터</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산·회계·유통·인사 전 모듈의 긴급 알림을 한 곳에서 확인합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산 · 회계 · 유통 · 인사 전 모듈의 긴급 알림을 한 곳에서 확인합니다</p>
       </div>
 
-      {/* 필터 + 액션 */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+      <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)", padding: "22px" }}>
+        {/* 필터 + 액션 */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {MODULES.map(m => (
             <button key={m} onClick={() => setFilter(m)}
@@ -155,24 +166,24 @@ export default function AlertCenterPage() {
       {loading ? (
         <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "48px" }}>불러오는 중...</p>
       ) : visible.length === 0 ? (
-        <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "48px", textAlign: "center" }}>
+        <div style={{ padding: "48px", textAlign: "center" }}>
           <p style={{ fontSize: "32px", marginBottom: "12px" }}>✅</p>
           <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>모든 항목이 정상입니다</p>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>현재 처리가 필요한 알림이 없습니다.</p>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>현재 처리가 필요한 알림이 없습니다</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {visible.map(a => {
-            const s = TYPE_STYLE[a.type];
+            const mc = MODULE_COLORS[a.module] ?? "#6B7280";
             return (
               <div key={a.id}
                 style={{ display: "flex", alignItems: "center", gap: "14px", padding: "14px 16px", borderRadius: "12px",
-                  backgroundColor: s.bg, border: `1px solid ${s.border}` }}>
+                  backgroundColor: `${mc}15`, border: `1px solid ${mc}50` }}>
                 <span style={{ fontSize: "20px", flexShrink: 0 }}>{a.icon}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "1px 6px", borderRadius: "4px",
-                      backgroundColor: s.badge, color: "white" }}>{a.module}</span>
+                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 7px", borderRadius: "4px",
+                      backgroundColor: `${mc}20`, border: `1px solid ${mc}60`, color: mc }}>{a.module}</span>
                     <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{a.title}</span>
                   </div>
                   <p style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{a.desc}</p>
@@ -180,12 +191,12 @@ export default function AlertCenterPage() {
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
                   <button onClick={() => router.push(a.href)}
                     style={{ fontSize: "12px", fontWeight: 600, padding: "6px 14px", borderRadius: "8px", cursor: "pointer",
-                      border: `1px solid ${s.badge}`, color: s.badge, background: "white" }}>
+                      border: `1px solid ${mc}`, color: mc, background: "var(--bg-surface)" }}>
                     확인
                   </button>
                   <button onClick={() => dismiss(a.id)}
                     style={{ fontSize: "12px", color: "var(--text-muted)", padding: "6px 10px", borderRadius: "8px",
-                      border: "1px solid var(--border)", background: "white", cursor: "pointer" }}>
+                      border: "1px solid var(--border)", background: "var(--bg-surface)", cursor: "pointer" }}>
                     ✕
                   </button>
                 </div>
@@ -194,6 +205,7 @@ export default function AlertCenterPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }
