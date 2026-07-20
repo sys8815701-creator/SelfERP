@@ -43,6 +43,7 @@ app.add_middleware(
 def startup():
     Base.metadata.create_all(bind=engine)
     # businesses 테이블에 은행 정보 컬럼 추가 (기존 테이블에 누락 시)
+    added_columns: set = set()
     with engine.connect() as conn:
         for col, ddl in [
             ("bank_name",             "ALTER TABLE businesses ADD COLUMN bank_name VARCHAR(50)"),
@@ -76,12 +77,29 @@ def startup():
             ("expense_business_id",  "ALTER TABLE expenses ADD COLUMN business_id INT NULL"),
             ("business_is_pro",      "ALTER TABLE businesses ADD COLUMN is_pro TINYINT DEFAULT 0"),
             ("journal_business_id",  "ALTER TABLE journals ADD COLUMN business_id INT NULL"),
+            ("employee_role",        "ALTER TABLE employees ADD COLUMN role ENUM('admin','accountant','employee') DEFAULT 'employee'"),
+            ("user_is_platform_admin", "ALTER TABLE users ADD COLUMN is_platform_admin TINYINT DEFAULT 0"),
         ]:
             try:
                 conn.execute(text(ddl))
                 conn.commit()
+                added_columns.add(col)
             except Exception:
                 conn.rollback()  # 이미 존재하면 무시
+
+    # employees.role 컬럼을 방금 새로 추가한 경우에 한해, 기존 로그인 연결된
+    # 직원의 역할을 그 시점의 User.role로 1회 백필한다 (이후로는 사업장별로
+    # 독립적으로 관리되므로 재실행 시 덮어쓰지 않도록 added_columns로 1회만 수행)
+    if "employee_role" in added_columns:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "UPDATE employees e JOIN users u ON e.user_id = u.id "
+                    "SET e.role = u.role WHERE e.user_id IS NOT NULL"
+                ))
+                conn.commit()
+        except Exception:
+            pass
 
     # '이지건' 계정 관리자 권한 + 활성 상태 설정
     try:

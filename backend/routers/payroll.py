@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from core.database import get_db
-from core.deps import get_current_business, get_current_user
+from core.deps import get_current_business, get_current_role
 from models.business import Business
-from models.user import User
 from models.employee import Employee
 from models.payroll import Payroll, Severance
 from pydantic import BaseModel
@@ -16,11 +15,11 @@ router = APIRouter(prefix="/api/hr/payroll", tags=["payroll"])
 
 
 def require_admin(
-    current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
 ) -> Business:
-    """급여·퇴직금 정보는 사업장 admin만 접근 가능."""
-    if current_user.role != "admin":
+    """급여·퇴직금 정보 쓰기는 사업장 admin·accountant만 접근 가능."""
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="급여 정보에 접근할 권한이 없습니다.")
     return business
 

@@ -5,9 +5,8 @@ from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
 from core.database import get_db
-from core.deps import get_current_business, get_current_user
+from core.deps import get_current_business, get_current_role
 from models.business import Business
-from models.user import User
 from models.distribution import Vehicle, SalesOrder, SalesOrderItem, Delivery, DeliveryReturn
 from models.production import Item, InventoryLog
 
@@ -15,11 +14,11 @@ router = APIRouter(prefix="/api/distribution", tags=["distribution"])
 
 
 def require_writer(
-    current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
 ) -> Business:
     """차량/배송/반품 등록·수정은 admin·accountant만 가능 (employee는 조회만)."""
-    if current_user.role not in ("admin", "accountant"):
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="이 작업을 수행할 권한이 없습니다.")
     return business
 

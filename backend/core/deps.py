@@ -105,3 +105,32 @@ def get_current_business(
             return business
 
     raise HTTPException(status_code=404, detail="등록된 사업장이 없습니다.")
+
+
+def get_role_for_business(business: Business, user: User, db: Session) -> str:
+    """특정 business 맥락에서 user의 역할을 구하는 순수 함수 버전 — path parameter로
+    business_id를 받는 라우터(예: business.py)처럼 X-Business-Id 헤더가 아니라
+    이미 조회된 Business 객체를 기준으로 역할을 판정해야 할 때 직접 호출한다."""
+    if business.user_id == user.id:
+        return "admin"
+    emp = (
+        db.query(Employee)
+        .filter(Employee.business_id == business.id)
+        .filter(Employee.status == "재직")
+        .filter((Employee.user_id == user.id) | (Employee.email == user.email))
+        .first()
+    )
+    if emp and emp.role:
+        return emp.role
+    return "employee"
+
+
+def get_current_role(
+    business: Business = Depends(get_current_business),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> str:
+    """현재 X-Business-Id 사업장 맥락에서 user의 역할. User.role(전역)이 아니라
+    사업장별 소속(Employee.role)에서 구한다 — 한 계정이 사업장마다 다른 역할을
+    가질 수 있어야 하므로, 소유자가 아니면 반드시 이 사업장의 Employee.role을 본다."""
+    return get_role_for_business(business, user, db)

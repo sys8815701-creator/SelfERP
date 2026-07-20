@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
-from core.deps import get_current_user, get_current_business
+from core.deps import get_current_user, get_current_business, get_current_role
 from models.account import Account
 from models.business import Business
 from models.user import User
@@ -29,8 +29,8 @@ def get_account(account_id: int, current_user: User = Depends(get_current_user),
 
 # 계정과목 생성 (전 사업장이 공유하는 계정과목표이므로 admin/accountant만 변경 가능)
 @router.post("/accounts", response_model=AccountResponse)
-def create_account(data: AccountCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in ("admin", "accountant"):
+def create_account(data: AccountCreate, current_user: User = Depends(get_current_user), role: str = Depends(get_current_role), db: Session = Depends(get_db)):
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="계정과목을 생성할 권한이 없습니다.")
     existing = db.query(Account).filter(Account.code == data.code).first()
     if existing:
@@ -43,8 +43,8 @@ def create_account(data: AccountCreate, current_user: User = Depends(get_current
 
 # 계정과목 수정
 @router.put("/accounts/{account_id}", response_model=AccountResponse)
-def update_account(account_id: int, data: AccountUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in ("admin", "accountant"):
+def update_account(account_id: int, data: AccountUpdate, current_user: User = Depends(get_current_user), role: str = Depends(get_current_role), db: Session = Depends(get_db)):
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="계정과목을 수정할 권한이 없습니다.")
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:
@@ -57,8 +57,8 @@ def update_account(account_id: int, data: AccountUpdate, current_user: User = De
 
 # 계정과목 삭제
 @router.delete("/accounts/{account_id}")
-def delete_account(account_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in ("admin", "accountant"):
+def delete_account(account_id: int, current_user: User = Depends(get_current_user), role: str = Depends(get_current_role), db: Session = Depends(get_db)):
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="계정과목을 삭제할 권한이 없습니다.")
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:

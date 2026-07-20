@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from core.database import get_db
-from core.deps import get_current_business, get_current_user
+from core.deps import get_current_business, get_current_user, get_current_role
 from models.business import Business
 from models.user import User
 from models.department import Department
@@ -24,11 +24,11 @@ router = APIRouter(prefix="/api/hr", tags=["hr"])
 
 
 def require_manager(
-    current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
 ) -> Business:
-    """부서·직급·직원·계약서 등 인사 정보 변경은 admin/accountant(매니저)만 가능."""
-    if current_user.role not in ("admin", "accountant"):
+    """부서·직급·직원·계약서 등 인사 정보 변경은 admin·accountant(매니저)만 가능."""
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="인사 정보를 변경할 권한이 없습니다.")
     return business
 

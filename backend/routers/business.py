@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_db
-from core.deps import get_current_user, get_current_business
+from core.deps import get_current_user, get_current_business, get_role_for_business
 from models.user import User
 from models.business import Business
 from models.employee import Employee
@@ -153,11 +153,8 @@ def approve_join_request(
     if not req:
         raise HTTPException(status_code=404, detail="요청을 찾을 수 없습니다.")
 
-    business = db.query(Business).filter(
-        Business.id == req.business_id,
-        Business.user_id == current_user.id,
-    ).first()
-    if not business:
+    business = db.query(Business).filter(Business.id == req.business_id).first()
+    if not business or get_role_for_business(business, current_user, db) != "admin":
         raise HTTPException(status_code=403, detail="이 사업장의 관리자만 승인할 수 있습니다.")
 
     # 유저 활성화 (가입 후 대기 중인 경우)
@@ -178,13 +175,15 @@ def approve_join_request(
             if not emp.user_id:
                 emp.user_id = user.id
         else:
-            # Employee 레코드가 없으면 최소 정보로 신규 생성
+            # Employee 레코드가 없으면 최소 정보로 신규 생성 — role은 최소 권한(employee)으로
+            # 시작하고, 이후 사업장 admin이 필요에 따라 승격시킨다
             new_emp = Employee(
                 business_id=req.business_id,
                 user_id=user.id,
                 name=user.name,
                 email=user.email,
                 hire_date=date.today(),
+                role="employee",
             )
             db.add(new_emp)
 
@@ -206,11 +205,8 @@ def reject_join_request(
     if not req:
         raise HTTPException(status_code=404, detail="요청을 찾을 수 없습니다.")
 
-    business = db.query(Business).filter(
-        Business.id == req.business_id,
-        Business.user_id == current_user.id,
-    ).first()
-    if not business:
+    business = db.query(Business).filter(Business.id == req.business_id).first()
+    if not business or get_role_for_business(business, current_user, db) != "admin":
         raise HTTPException(status_code=403, detail="이 사업장의 관리자만 거절할 수 있습니다.")
 
     req.status        = "rejected"
@@ -305,7 +301,7 @@ def update_business(
     db: Session = Depends(get_db),
 ):
     business = _authorize_business_access(business_id, current_user, db)
-    if current_user.role not in ("admin", "accountant"):
+    if get_role_for_business(business, current_user, db) not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="사업장 정보를 수정할 권한이 없습니다.")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(business, field, value)
@@ -338,7 +334,7 @@ def update_bank_info(
     db: Session = Depends(get_db),
 ):
     business = _authorize_business_access(business_id, current_user, db)
-    if current_user.role not in ("admin", "accountant"):
+    if get_role_for_business(business, current_user, db) not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="주 거래 은행 정보를 수정할 권한이 없습니다.")
     business.bank_name      = data.bank_name
     business.account_number = data.account_number
@@ -433,7 +429,7 @@ def subscribe_pro(
     db: Session = Depends(get_db),
 ):
     business = _authorize_business_access(business_id, current_user, db)
-    if current_user.role not in ("admin", "accountant"):
+    if get_role_for_business(business, current_user, db) not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="구독 정보를 변경할 권한이 없습니다.")
     business.is_pro = 1
     db.commit()
@@ -448,7 +444,7 @@ def unsubscribe_pro(
     db: Session = Depends(get_db),
 ):
     business = _authorize_business_access(business_id, current_user, db)
-    if current_user.role not in ("admin", "accountant"):
+    if get_role_for_business(business, current_user, db) not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="구독 정보를 변경할 권한이 없습니다.")
     business.is_pro = 0
     db.commit()

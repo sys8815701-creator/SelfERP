@@ -22,6 +22,7 @@ class Employee(Base):
     resign_date     = Column(Date, nullable=True)
     employment_type = Column(Enum("정규직", "계약직", "일용직", "파트타임"), default="정규직")
     status          = Column(Enum("재직", "휴직", "퇴직"), default="재직")
+    role            = Column(Enum("admin", "accountant", "employee"), default="employee")
 
     base_salary     = Column(Numeric(15, 2), default=0)
     bank_name       = Column(String(50))

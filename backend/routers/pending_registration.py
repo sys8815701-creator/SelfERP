@@ -104,13 +104,15 @@ def check_status(email: str, db: Session = Depends(get_db)):
     }
 
 
+# 신규 사업장 승인은 특정 사업장에 속한 일이 아니라 플랫폼에 새 테넌트를
+# 등록하는 일이므로, 사업장 admin이 아니라 플랫폼 관리자만 접근 가능
 @router.get("/list", response_model=List[PendingRegisterResponse])
 def list_pending(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    if not current_user.is_platform_admin:
+        raise HTTPException(status_code=403, detail="플랫폼 관리자만 접근 가능합니다.")
     return db.query(PendingRegistration).order_by(PendingRegistration.created_at.desc()).all()
 
 
@@ -121,8 +123,8 @@ def review_registration(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    if not current_user.is_platform_admin:
+        raise HTTPException(status_code=403, detail="플랫폼 관리자만 접근 가능합니다.")
     pending = db.query(PendingRegistration).filter(PendingRegistration.id == pending_id).first()
     if not pending:
         raise HTTPException(status_code=404, detail="신청 내역을 찾을 수 없습니다.")

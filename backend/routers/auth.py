@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import random, string
 from core.database import get_db
 from core.security import hash_password, verify_password, create_access_token, decode_access_token
-from core.deps import get_current_user
+from core.deps import get_current_user, get_current_business, get_current_role
 from models.user import User
 from models.business import Business
 from models.email_verification import EmailVerification
@@ -293,77 +293,96 @@ def delete_account(
     return {"message": "계정이 삭제되었습니다."}
 
 
-def _my_org_user_ids(current_user: User, db: Session) -> set:
-    """current_user가 소유한 사업장에 소속된(Employee) 사용자 id 집합."""
-    biz_ids = [b.id for b in db.query(Business).filter(Business.user_id == current_user.id).all()]
-    if not biz_ids:
-        return set()
-    emps = db.query(Employee).filter(Employee.business_id.in_(biz_ids)).all()
-    ids = {e.user_id for e in emps if e.user_id}
-    emails = {e.email for e in emps if e.email and not e.user_id}
-    if emails:
-        ids |= {u.id for u in db.query(User).filter(User.email.in_(emails)).all()}
-    return ids
-
-
-# 사용자 목록 조회 (관리자 전용) - 자신의 사업장에 소속된 활성 계정만
+# 사용자 목록 조회 (사업장 admin 전용) - 현재 사업장(X-Business-Id)에 소속된 활성 계정만.
+# role은 전역 User.role이 아니라 이 사업장에서의 Employee.role로 덮어써서 응답한다.
 @router.get("/users", response_model=List[UserFullResponse])
 def list_users(
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
+    if role != "admin":
         raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
-    ids = _my_org_user_ids(current_user, db)
-    if not ids:
-        return []
-    return db.query(User).filter(User.is_active != 0, User.id.in_(ids)).order_by(User.created_at).all()
+    emps = (
+        db.query(Employee)
+        .filter(Employee.business_id == business.id)
+        .filter(Employee.status == "재직")
+        .all()
+    )
+    results: List[User] = []
+    seen_ids: set = set()
+    for emp in emps:
+        user = None
+        if emp.user_id:
+            user = db.query(User).filter(User.id == emp.user_id).first()
+        elif emp.email:
+            user = db.query(User).filter(User.email == emp.email).first()
+        if user and user.is_active != 0 and user.id not in seen_ids:
+            user.role = emp.role or "employee"
+            results.append(user)
+            seen_ids.add(user.id)
+    if business.user_id not in seen_ids:
+        owner = db.query(User).filter(User.id == business.user_id, User.is_active != 0).first()
+        if owner:
+            owner.role = "admin"
+            results.insert(0, owner)
+    results.sort(key=lambda u: u.created_at)
+    return results
 
 
-# 사용자 권한 변경 (관리자 전용)
+# 사용자 권한 변경 (사업장 admin 전용) - 이 사업장 소속(Employee)의 역할만 바꾼다.
+# 대상자가 다른 사업장에도 소속되어 있다면 그쪽 역할에는 영향을 주지 않는다.
 @router.patch("/users/{user_id}/role")
 def change_user_role(
     user_id: int,
     data: UserRoleUpdate,
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
+    if role != "admin":
         raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="자신의 권한은 변경할 수 없습니다.")
     if data.role not in ("admin", "accountant", "employee"):
         raise HTTPException(status_code=400, detail="유효하지 않은 권한입니다.")
-    if user_id not in _my_org_user_ids(current_user, db):
-        raise HTTPException(status_code=403, detail="자신의 사업장에 소속된 사용자만 관리할 수 있습니다.")
-    target = db.query(User).filter(User.id == user_id).first()
-    if not target:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
-    target.role = data.role
+    emp = (
+        db.query(Employee)
+        .filter(Employee.business_id == business.id)
+        .filter(Employee.status == "재직")
+        .filter(Employee.user_id == user_id)
+        .first()
+    )
+    if not emp:
+        raise HTTPException(status_code=403, detail="이 사업장에 소속된 사용자만 관리할 수 있습니다.")
+    emp.role = data.role
     db.commit()
-    return {"message": "권한이 변경되었습니다.", "user_id": target.id, "role": target.role}
+    return {"message": "권한이 변경되었습니다.", "user_id": user_id, "role": emp.role}
 
 
-# 승인 대기 중인 사용자 목록 (관리자 전용)
+# 승인 대기 중인 사용자 목록 (플랫폼 관리자 전용) - 특정 사업장에 속한 일이 아니라
+# 시스템 전체의 신규 계정 승인이므로 사업장 admin이 아니라 플랫폼 관리자만 접근 가능
 @router.get("/users/pending", response_model=List[UserFullResponse])
 def list_pending_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    if not current_user.is_platform_admin:
+        raise HTTPException(status_code=403, detail="플랫폼 관리자만 접근 가능합니다.")
     return db.query(User).filter(User.is_active == 0).order_by(User.created_at).all()
 
 
-# 사용자 계정 승인 (관리자 전용)
+# 사용자 계정 승인 (플랫폼 관리자 전용)
 @router.patch("/users/{user_id}/approve")
 def approve_user(
     user_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    if not current_user.is_platform_admin:
+        raise HTTPException(status_code=403, detail="플랫폼 관리자만 접근 가능합니다.")
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
@@ -372,15 +391,15 @@ def approve_user(
     return {"message": "계정이 승인되었습니다.", "user_id": target.id}
 
 
-# 사용자 계정 삭제/거절 (관리자 전용)
+# 사용자 계정 삭제/거절 (플랫폼 관리자 전용)
 @router.delete("/users/{user_id}")
 def delete_user(
     user_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="관리자만 접근 가능합니다.")
+    if not current_user.is_platform_admin:
+        raise HTTPException(status_code=403, detail="플랫폼 관리자만 접근 가능합니다.")
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="자신의 계정은 삭제할 수 없습니다.")
     target = db.query(User).filter(User.id == user_id).first()

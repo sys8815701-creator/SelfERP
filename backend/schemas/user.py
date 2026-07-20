@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
     email: str
     name: Optional[str]
     role: str
+    is_platform_admin: Optional[bool] = False
 
     class Config:
         from_attributes = True

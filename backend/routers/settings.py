@@ -2,7 +2,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from core.database import get_db
-from core.deps import get_current_user, get_current_business
+from core.deps import get_current_user, get_current_business, get_current_role
 from models.user import User
 from models.business import Business
 from models.system_setting import SystemSetting
@@ -28,9 +28,10 @@ async def save_role_access(
     request: Request,
     current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != "admin":
+    if role != "admin":
         raise HTTPException(status_code=403, detail="관리자만 변경할 수 있습니다.")
     data = await request.json()
     key = f"role-access:{business.id}"

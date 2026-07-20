@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
-from core.deps import get_current_user, get_current_business
+from core.deps import get_current_user, get_current_business, get_current_role
 from core.socket import sio
 from models.expense import Expense
 from models.user import User
@@ -18,10 +18,11 @@ router = APIRouter(prefix="/api/expense", tags=["expense"])
 def get_expenses(
     current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
     query = db.query(Expense).filter(Expense.business_id == business.id)
-    if current_user.role not in ("admin", "accountant"):
+    if role not in ("admin", "accountant"):
         query = query.filter(Expense.requested_by == current_user.id)
     expenses = query.order_by(Expense.requested_at.desc()).all()
 
@@ -39,10 +40,11 @@ def get_expense(
     expense_id: int,
     current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
     query = db.query(Expense).filter(Expense.id == expense_id, Expense.business_id == business.id)
-    if current_user.role not in ("admin", "accountant"):
+    if role not in ("admin", "accountant"):
         query = query.filter(Expense.requested_by == current_user.id)
     expense = query.first()
     if not expense:
@@ -82,9 +84,10 @@ async def approve_expense(
     expense_id: int,
     current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in ("admin", "accountant"):
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="경비를 승인할 권한이 없습니다.")
     expense = db.query(Expense).filter(
         Expense.id == expense_id,
@@ -116,9 +119,10 @@ async def reject_expense(
     expense_id: int,
     current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in ("admin", "accountant"):
+    if role not in ("admin", "accountant"):
         raise HTTPException(status_code=403, detail="경비를 반려할 권한이 없습니다.")
     expense = db.query(Expense).filter(
         Expense.id == expense_id,

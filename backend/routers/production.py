@@ -6,8 +6,7 @@ from typing import Optional, List
 from datetime import date
 from decimal import Decimal
 from core.database import get_db
-from core.deps import get_current_business, get_current_user
-from models.user import User
+from core.deps import get_current_business, get_current_role
 from models.production import Item, BOM, BOMLine, ProductionOrder, ProductionResult, InventoryLog
 
 router = APIRouter(prefix="/api/production", tags=["production"])
@@ -361,10 +360,10 @@ def create_result(body: ProductionResultCreate, db: Session = Depends(get_db), b
 def cost_analysis(
     product_id: Optional[int] = None,
     db: Session = Depends(get_db), business=Depends(get_current_business),
-    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
 ):
     """BOM 기반 제품별 단위 원가 분석 (원가·마진 정보이므로 admin만 열람 가능 — 프론트 MENU_ACCESS와 동일한 정책)"""
-    if current_user.role != "admin":
+    if role != "admin":
         raise HTTPException(status_code=403, detail="원가 분석을 열람할 권한이 없습니다.")
     q = db.query(BOM).filter(BOM.business_id == business.id, BOM.is_active == 1)
     if product_id:

@@ -8,8 +8,7 @@ from sqlalchemy import func, extract
 from typing import Optional
 from datetime import date
 from core.database import get_db
-from core.deps import get_current_business, get_current_user
-from models.user import User
+from core.deps import get_current_business, get_current_role
 from models.business import Business
 from models.bank_transaction import BankTransaction
 from models.card_sale import CardSale
@@ -19,11 +18,11 @@ router = APIRouter(prefix="/api/accounting/statements", tags=["statements"])
 
 
 def require_admin(
-    current_user: User = Depends(get_current_user),
     business: Business = Depends(get_current_business),
+    role: str = Depends(get_current_role),
 ) -> Business:
     """재무제표는 사업장 admin만 열람 가능 (프론트 MENU_ACCESS와 동일한 admin-only 정책)."""
-    if current_user.role != "admin":
+    if role != "admin":
         raise HTTPException(status_code=403, detail="재무제표를 열람할 권한이 없습니다.")
     return business
 
