@@ -5,6 +5,99 @@ import api from "@/lib/api";
 
 function fmt(v: any) { return parseFloat(String(v ?? 0)).toLocaleString("ko-KR"); }
 
+/* 억/만 단위로 축약 — 대시보드 전반에서 이미 쓰는 표기 규칙과 통일 */
+function fmtWon(v: number) {
+  const n = Math.round(v);
+  if (n >= 1e8) return `${(n / 1e8).toFixed(1)}억`;
+  if (n >= 1e4) return `${Math.round(n / 1e4).toLocaleString("ko-KR")}만`;
+  return n.toLocaleString("ko-KR");
+}
+
+/* 축 눈금을 0/1,2,5×10ⁿ 같은 "깔끔한" 값으로 반올림 */
+function niceMax(v: number) {
+  if (v <= 0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = v / 10 ** exp;
+  const step = base <= 1 ? 1 : base <= 2 ? 2 : base <= 5 ? 5 : 10;
+  return step * 10 ** exp;
+}
+
+/* 월별 막대그래프 — Y축 눈금선 + 막대별 hover 툴팁 포함
+   (막대 위마다 값을 직접 찍는 대신, 눈금선으로 크기를 가늠하고 정확한 값은 hover로 확인) */
+function MonthlyBarChart({
+  data, valueKey, labelKey = "month", color = "var(--accent)", fmtValue, fmtAxis, unit,
+}: {
+  data: any[];
+  valueKey: string;
+  labelKey?: string;
+  color?: string;
+  fmtValue: (v: number) => string;
+  fmtAxis: (v: number) => string;
+  unit: string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const L = 44, R = 10, T = 14, B = 26;
+  const CW = 560, CH = 160;
+  const svgW = L + CW + R, svgH = T + CH + B;
+  const n = Math.max(data.length, 1);
+  const slotW = CW / n;
+  const barW = Math.min(Math.max(Math.floor(slotW * 0.5), 8), 24);
+  const max = niceMax(Math.max(...data.map(d => d[valueKey] || 0), 1));
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(r => ({ val: max * r, y: T + CH - r * CH }));
+  const bx = (i: number) => L + i * slotW + (slotW - barW) / 2;
+  const by = (v: number) => T + CH - (v / max) * CH;
+  const bh = (v: number) => Math.max((v / max) * CH, 1);
+
+  if (data.length === 0) {
+    return <p style={{ fontSize: "13px", color: "var(--text-muted)", padding: "32px 0", textAlign: "center" }}>데이터 없음</p>;
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <svg viewBox={`0 0 ${svgW} ${svgH}`} style={{ width: "100%", display: "block", overflow: "visible" }}>
+        {yTicks.map(({ val, y }) => (
+          <g key={val}>
+            <line x1={L} x2={L + CW} y1={y} y2={y} stroke="var(--border)" strokeWidth="1" />
+            <text x={L - 6} y={y + 3.5} textAnchor="end" fontSize={10} fill="var(--text-muted)">{fmtAxis(val)}</text>
+          </g>
+        ))}
+        {data.map((d, i) => {
+          const v = d[valueKey] || 0;
+          const isHover = hover === i;
+          return (
+            <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} style={{ cursor: "pointer" }}>
+              {/* 히트 영역: 막대보다 넓게 잡아 hover가 쉽게 걸리도록 */}
+              <rect x={L + i * slotW} y={T} width={slotW} height={CH} fill="transparent" />
+              <rect x={bx(i)} y={by(v)} width={barW} height={bh(v)} rx={4}
+                fill={color} fillOpacity={isHover ? 1 : 0.75} style={{ transition: "fill-opacity 0.12s" }} />
+              <text x={L + i * slotW + slotW / 2} y={T + CH + 18} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
+                {d[labelKey]}월
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {hover !== null && (() => {
+        const d = data[hover];
+        const v = d[valueKey] || 0;
+        const left = ((bx(hover) + barW / 2) / svgW) * 100;
+        const top = (by(v) / svgH) * 100;
+        return (
+          <div style={{
+            position: "absolute", left: `${left}%`, top: `${top}%`, transform: "translate(-50%, -100%)",
+            marginTop: "-8px", backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)",
+            borderRadius: "8px", padding: "6px 10px", boxShadow: "var(--shadow-lg)", pointerEvents: "none",
+            whiteSpace: "nowrap", zIndex: 10,
+          }}>
+            <p style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{d[labelKey]}월</p>
+            <p style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>{fmtValue(v)}{unit}</p>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 export default function DeliveryFeePage() {
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -27,13 +120,12 @@ export default function DeliveryFeePage() {
   useEffect(() => { load(); }, [load]);
 
   const monthly: any[] = data?.monthly ?? [];
-  const maxFee = Math.max(...monthly.map((m: any) => m.total_fee), 1);
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>배송비 정산</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>완료된 배송의 차량별·월별 배송비를 집계합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>완료된 배송의 차량별 · 월별 배송비를 집계합니다</p>
       </div>
 
       {/* 필터 */}
@@ -92,23 +184,9 @@ export default function DeliveryFeePage() {
 
         {/* 월별 차트 */}
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "16px 18px" }}>
-          <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "16px" }}>월별 배송비</p>
-          {monthly.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", padding: "32px 0", textAlign: "center" }}>데이터 없음</p>
-          ) : (
-            <div style={{ display: "flex", alignItems: "flex-end", gap: "8px", height: "160px" }}>
-              {monthly.map((m: any, idx: number) => {
-                const barH = Math.max((m.total_fee / maxFee) * 130, 4);
-                return (
-                  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-                    <span style={{ fontSize: "9px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>₩{Math.round(m.total_fee / 1000)}K</span>
-                    <div style={{ width: "100%", height: `${barH}px`, backgroundColor: "var(--accent)", borderRadius: "4px 4px 0 0", opacity: 0.8, minWidth: "20px" }} />
-                    <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{m.month}월</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>월별 배송비</p>
+          <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>월별 배송비 총액 추이 (막대에 마우스를 올리면 정확한 금액이 표시됩니다)</p>
+          <MonthlyBarChart data={monthly} valueKey="total_fee" fmtValue={v => `₩${fmt(v)}`} fmtAxis={fmtWon} unit="" />
         </div>
       </div>
     </div>

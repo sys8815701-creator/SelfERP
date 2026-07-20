@@ -5,12 +5,14 @@ import { Plus, CheckCircle, XCircle, Clock } from "lucide-react";
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
 import { addNotif } from "@/lib/notif";
+import { useRole, canWrite } from "@/hooks/useRole";
 
-interface Expense { id: number; title: string; amount: number; category: string; status: string; requested_at: string; }
+interface Expense { id: number; title: string; amount: number; category: string; status: string; requested_at: string; requester_name?: string | null; }
 
 const CATS = ["식비", "교통비", "사무용품", "통신비", "소모품비", "접대비", "교육비", "기타"];
 
 export default function ExpensePage() {
+  const role = useRole();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -57,7 +59,7 @@ export default function ExpensePage() {
           setForm({ title: "", amount: "", category: "식비" });
           setShowForm(false);
           fetchExpenses();
-        } catch (e: any) { setModal({ message: e?.response?.data?.detail ?? "오류가 발생했습니다.", variant: "error" }); }
+        } catch (e: any) { setModal({ message: e?.response?.data?.detail ?? "오류가 발생했습니다", variant: "error" }); }
         finally { setSubmitting(false); }
       },
     });
@@ -178,10 +180,13 @@ export default function ExpensePage() {
                   <StatusBadge s={exp.status} />
                   <span style={{ fontSize: "11px", backgroundColor: "var(--bg-surface-3)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: "5px" }}>{exp.category}</span>
                 </div>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>신청일: {d.getFullYear()}.{String(d.getMonth() + 1).padStart(2, "0")}.{String(d.getDate()).padStart(2, "0")}</p>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  신청일: {d.getFullYear()}.{String(d.getMonth() + 1).padStart(2, "0")}.{String(d.getDate()).padStart(2, "0")}
+                  {exp.requester_name && <> · 신청자: {exp.requester_name}</>}
+                </p>
               </div>
               <span style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)" }}>{Number(exp.amount).toLocaleString("ko-KR")}원</span>
-              {exp.status !== "draft" && (() => {
+              {exp.status !== "draft" && canWrite(role) && (() => {
                 const isApproved = exp.status === "approved";
                 const isRejected = exp.status === "rejected";
                 return (
@@ -192,9 +197,9 @@ export default function ExpensePage() {
                       disabled={isApproved}
                       style={{
                         display: "flex", alignItems: "center", gap: "4px",
-                        backgroundColor: isApproved ? "#22C55E" : "rgba(34,197,94,0.1)",
-                        color: isApproved ? "#fff" : "#22C55E",
-                        border: isApproved ? "none" : "none",
+                        backgroundColor: "rgba(34,197,94,0.12)",
+                        color: "#22C55E",
+                        border: "1px solid rgba(34,197,94,0.40)",
                         borderRadius: "7px", padding: "6px 12px",
                         fontSize: "12px", fontWeight: 700,
                         cursor: isApproved ? "default" : "pointer",
@@ -209,9 +214,9 @@ export default function ExpensePage() {
                       disabled={isRejected}
                       style={{
                         display: "flex", alignItems: "center", gap: "4px",
-                        backgroundColor: isRejected ? "#EF4444" : "rgba(239,68,68,0.08)",
-                        color: isRejected ? "#fff" : "#EF4444",
-                        border: "none",
+                        backgroundColor: "rgba(239,68,68,0.12)",
+                        color: "#EF4444",
+                        border: "1px solid rgba(239,68,68,0.40)",
                         borderRadius: "7px", padding: "6px 12px",
                         fontSize: "12px", fontWeight: 700,
                         cursor: isRejected ? "default" : "pointer",

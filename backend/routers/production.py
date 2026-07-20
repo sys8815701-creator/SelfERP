@@ -6,7 +6,8 @@ from typing import Optional, List
 from datetime import date
 from decimal import Decimal
 from core.database import get_db
-from core.deps import get_current_business
+from core.deps import get_current_business, get_current_user
+from models.user import User
 from models.production import Item, BOM, BOMLine, ProductionOrder, ProductionResult, InventoryLog
 
 router = APIRouter(prefix="/api/production", tags=["production"])
@@ -55,6 +56,15 @@ class ProductionOrderCreate(BaseModel):
     bom_id:       Optional[int] = None
     planned_qty:  Decimal
     planned_date: Optional[date] = None
+    note:         Optional[str] = None
+
+class ProductionOrderUpdate(BaseModel):
+    order_no:     Optional[str] = None
+    product_id:   Optional[int] = None
+    bom_id:       Optional[int] = None
+    planned_qty:  Optional[Decimal] = None
+    planned_date: Optional[date] = None
+    status:       Optional[str] = None
     note:         Optional[str] = None
 
 class ProductionResultCreate(BaseModel):
@@ -158,8 +168,14 @@ def delete_item(item_id: int, db: Session = Depends(get_db), business=Depends(ge
     item = db.query(Item).filter(Item.id == item_id, Item.business_id == business.id).first()
     if not item:
         raise HTTPException(status_code=404, detail="품목을 찾을 수 없습니다.")
-    if item.logs:
-        raise HTTPException(status_code=400, detail="입출고 이력이 있는 품목은 삭제할 수 없습니다.")
+    in_use = (
+        item.logs
+        or db.query(BOMLine).filter(BOMLine.item_id == item_id).first()
+        or db.query(BOM).filter(BOM.product_id == item_id).first()
+        or db.query(ProductionOrder).filter(ProductionOrder.product_id == item_id).first()
+    )
+    if in_use:
+        raise HTTPException(status_code=400, detail="사용 중인 품목은 삭제할 수 없습니다. (입출고 이력, BOM, 생산 지시서에서 사용 중)")
     db.delete(item)
     db.commit()
     return {"ok": True}
@@ -203,6 +219,8 @@ def delete_bom(bom_id: int, db: Session = Depends(get_db), business=Depends(get_
     b = db.query(BOM).filter(BOM.id == bom_id, BOM.business_id == business.id).first()
     if not b:
         raise HTTPException(status_code=404, detail="BOM을 찾을 수 없습니다.")
+    if db.query(ProductionOrder).filter(ProductionOrder.bom_id == bom_id).first():
+        raise HTTPException(status_code=400, detail="생산 지시서에서 사용 중인 BOM은 삭제할 수 없습니다.")
     db.delete(b)
     db.commit()
     return {"ok": True}
@@ -238,7 +256,7 @@ def create_order(body: ProductionOrderCreate, db: Session = Depends(get_db), bus
 
 @router.put("/orders/{order_id}")
 def update_order(
-    order_id: int, body: dict,
+    order_id: int, body: ProductionOrderUpdate,
     db: Session = Depends(get_db), business=Depends(get_current_business),
 ):
     o = db.query(ProductionOrder).filter(
@@ -246,9 +264,8 @@ def update_order(
     ).first()
     if not o:
         raise HTTPException(status_code=404, detail="생산 지시서를 찾을 수 없습니다.")
-    for k, v in body.items():
-        if hasattr(o, k):
-            setattr(o, k, v)
+    for k, v in body.model_dump(exclude_none=True).items():
+        setattr(o, k, v)
     db.commit()
     db.refresh(o)
     return {c.name: getattr(o, c.name) for c in o.__table__.columns}
@@ -300,6 +317,33 @@ def create_result(body: ProductionResultCreate, db: Session = Depends(get_db), b
         note=f"생산 지시서 #{order.id} 완료",
     )
     db.add(log)
+
+    # BOM 기준 원자재 소비 — 완성 수량만큼 자재 재고를 차감하고 소비 이력을 남긴다
+    bom = None
+    if order.bom_id:
+        bom = db.query(BOM).filter(BOM.id == order.bom_id, BOM.business_id == business.id).first()
+    if not bom:
+        bom = (
+            db.query(BOM)
+            .filter(BOM.product_id == order.product_id, BOM.business_id == business.id, BOM.is_active == 1)
+            .first()
+        )
+    if bom:
+        for line in bom.lines:
+            material = db.query(Item).filter(Item.id == line.item_id).first()
+            if not material:
+                continue
+            consumed = float(line.quantity) * float(body.completed_qty)
+            material.current_stock = float(material.current_stock) - consumed
+            db.add(InventoryLog(
+                business_id=business.id,
+                item_id=material.id,
+                log_type="생산소비",
+                quantity=-consumed,
+                log_date=body.completed_date,
+                ref_no=order.order_no,
+                note=f"생산 지시서 #{order.id} 자재 소비",
+            ))
     # 모든 수량 완료 시 상태 변경
     total_completed = sum(float(r.completed_qty) for r in order.results) + float(body.completed_qty)
     if total_completed >= float(order.planned_qty):
@@ -317,8 +361,11 @@ def create_result(body: ProductionResultCreate, db: Session = Depends(get_db), b
 def cost_analysis(
     product_id: Optional[int] = None,
     db: Session = Depends(get_db), business=Depends(get_current_business),
+    current_user: User = Depends(get_current_user),
 ):
-    """BOM 기반 제품별 단위 원가 분석"""
+    """BOM 기반 제품별 단위 원가 분석 (원가·마진 정보이므로 admin만 열람 가능 — 프론트 MENU_ACCESS와 동일한 정책)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="원가 분석을 열람할 권한이 없습니다.")
     q = db.query(BOM).filter(BOM.business_id == business.id, BOM.is_active == 1)
     if product_id:
         q = q.filter(BOM.product_id == product_id)
@@ -511,6 +558,7 @@ def list_logs(
     for log in q.order_by(InventoryLog.log_date.desc()).all():
         d = {c.name: getattr(log, c.name) for c in log.__table__.columns}
         d["item_name"] = log.item.item_name if log.item else None
+        d["reference_no"] = d.get("ref_no")
         result.append(d)
     return result
 
@@ -533,4 +581,6 @@ def create_log(body: InventoryLogCreate, db: Session = Depends(get_db), business
     item.current_stock = float(item.current_stock) + float(body.quantity)
     db.commit()
     db.refresh(log)
-    return {c.name: getattr(log, c.name) for c in log.__table__.columns}
+    d = {c.name: getattr(log, c.name) for c in log.__table__.columns}
+    d["reference_no"] = d.get("ref_no")
+    return d

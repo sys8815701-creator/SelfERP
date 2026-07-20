@@ -18,6 +18,7 @@ class Business(Base):
     bank_name       = Column(String(50), nullable=True)
     account_number  = Column(String(50), nullable=True)
     bank_holder     = Column(String(100), nullable=True)
+    is_pro          = Column(Integer, default=0)
 
     user              = relationship("User", back_populates="businesses")
     card_sales        = relationship("CardSale", back_populates="business")

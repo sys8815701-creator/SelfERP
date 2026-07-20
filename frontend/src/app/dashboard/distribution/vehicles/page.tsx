@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
-const EMPTY = { plate_no: "", vehicle_type: "", driver_name: "", driver_phone: "", max_weight: "", note: "" };
+const EMPTY = { plate_no: "", vehicle_type: "", driver_name: "", driver_phone: "", max_weight: "", note: "", is_active: 1 };
 
 export default function VehiclesPage() {
+  const role = useRole();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [selected, setSelected] = useState<any | null>(null);
@@ -13,6 +16,7 @@ export default function VehiclesPage() {
   const [editId, setEditId]     = useState<number | null>(null);
   const [form, setForm]         = useState<any>({ ...EMPTY });
   const [saving, setSaving]     = useState(false);
+  const [modal, setModal]       = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
   const h = () => ({ "X-Business-Id": bizId() });
@@ -27,7 +31,7 @@ export default function VehiclesPage() {
   useEffect(() => { load(); }, [load]);
 
   const openCreate = () => { setForm({ ...EMPTY }); setEditId(null); setShowModal(true); };
-  const openEdit   = (v: any) => { setForm({ plate_no: v.plate_no, vehicle_type: v.vehicle_type || "", driver_name: v.driver_name || "", driver_phone: v.driver_phone || "", max_weight: v.max_weight ?? "", note: v.note || "" }); setEditId(v.id); setShowModal(true); };
+  const openEdit   = (v: any) => { setForm({ plate_no: v.plate_no, vehicle_type: v.vehicle_type || "", driver_name: v.driver_name || "", driver_phone: v.driver_phone || "", max_weight: v.max_weight ?? "", note: v.note || "", is_active: v.is_active ?? 1 }); setEditId(v.id); setShowModal(true); };
 
   const handleSave = async () => {
     if (!form.plate_no) return;
@@ -37,25 +41,35 @@ export default function VehiclesPage() {
       if (editId) await api.put(`/api/distribution/vehicles/${editId}`, body, { headers: h() });
       else await api.post("/api/distribution/vehicles", body, { headers: h() });
       setShowModal(false); setSelected(null); await load();
-    } catch { /* ignore */ } finally { setSaving(false); }
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+    } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("차량을 삭제하시겠습니까?")) return;
-    await api.delete(`/api/distribution/vehicles/${id}`, { headers: h() });
-    setSelected(null); await load();
+  const handleDelete = (id: number) => {
+    setModal({ title: "삭제 확인", message: "차량을 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/distribution/vehicles/${id}`, { headers: h() });
+          setSelected(null); await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "삭제에 실패했습니다.", variant: "error" });
+        }
+      } });
   };
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>차량 관리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>배송 차량 및 기사를 관리합니다. · {vehicles.filter(v => v.is_active).length}대</p>
         </div>
-        <button onClick={openCreate} style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 차량 등록
-        </button>
+        {canWrite(role) && (
+          <button onClick={openCreate} style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 차량 등록
+          </button>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 320px" : "1fr", gap: "20px" }}>
@@ -70,7 +84,7 @@ export default function VehiclesPage() {
             </thead>
             <tbody>
               {loading ? <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
-              : vehicles.length === 0 ? <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 차량이 없습니다.</td></tr>
+              : vehicles.length === 0 ? <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 차량이 없습니다</td></tr>
               : vehicles.map((v, i) => (
                 <tr key={v.id} onClick={() => setSelected(selected?.id === v.id ? null : v)}
                   style={{ borderBottom: i < vehicles.length - 1 ? "1px solid var(--border-subtle)" : "none", cursor: "pointer", backgroundColor: selected?.id === v.id ? "var(--bg-surface-2)" : "transparent" }}
@@ -82,7 +96,7 @@ export default function VehiclesPage() {
                   <td style={{ padding: "12px 14px", fontSize: "12px", color: "var(--text-muted)" }}>{v.driver_phone || "—"}</td>
                   <td style={{ padding: "12px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{v.max_weight ? `${parseFloat(v.max_weight).toLocaleString("ko-KR")}kg` : "—"}</td>
                   <td style={{ padding: "12px 14px" }}>
-                    <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, backgroundColor: v.is_active ? "#DCFCE7" : "#F3F4F6", color: v.is_active ? "#15803D" : "#6B7280" }}>
+                    <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, backgroundColor: v.is_active ? "rgba(21,128,61,0.12)" : "rgba(107,114,128,0.10)", border: v.is_active ? "1px solid rgba(21,128,61,0.40)" : "1px solid rgba(107,114,128,0.30)", color: v.is_active ? "#15803D" : "#6B7280" }}>
                       {v.is_active ? "운행중" : "미사용"}
                     </span>
                   </td>
@@ -114,13 +128,19 @@ export default function VehiclesPage() {
                 </div>
               ) : null)}
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => openEdit(selected)} style={{ flex: 1, padding: "9px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>수정</button>
-              <button onClick={() => handleDelete(selected.id)} style={{ padding: "9px 14px", backgroundColor: "var(--bg-surface-2)", color: "#DC2626", border: "1px solid #FCA5A5", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>삭제</button>
-            </div>
+            {canWrite(role) && (
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={() => openEdit(selected)} style={{ flex: 1, padding: "9px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>수정</button>
+                {canDelete(role) && (
+                  <button onClick={() => handleDelete(selected.id)} style={{ padding: "9px 14px", backgroundColor: "rgba(220,38,38,0.12)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>삭제</button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {showModal && (
         <>
@@ -149,10 +169,16 @@ export default function VehiclesPage() {
                 <textarea value={form.note} onChange={e => setForm((p: any) => ({ ...p, note: e.target.value }))} rows={2}
                   style={{ padding: "8px 10px", border: "1px solid var(--border)", borderRadius: "8px", backgroundColor: "var(--bg-surface-2)", color: "var(--text-primary)", fontSize: "13px", resize: "vertical", fontFamily: "inherit" }} />
               </div>
+              {editId && (
+                <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--text-primary)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={!!form.is_active} onChange={e => setForm((p: any) => ({ ...p, is_active: e.target.checked ? 1 : 0 }))} />
+                  운행중 (해제 시 미사용 처리)
+                </label>
+              )}
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={handleSave} disabled={saving || !form.plate_no}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "저장"}
               </button>
               <button onClick={() => setShowModal(false)} style={{ padding: "11px 20px", backgroundColor: "var(--bg-surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>취소</button>

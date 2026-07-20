@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { useRole } from "@/hooks/useRole";
 
 function fmt(v: any, dec = 0) {
   return parseFloat(String(v ?? 0)).toLocaleString("ko-KR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
 export default function CostAnalysisPage() {
+  const role = useRole();
   const [data, setData]         = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [selected, setSelected] = useState<any | null>(null);
@@ -24,8 +26,17 @@ export default function CostAnalysisPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  if (role !== "admin") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: "10px", color: "var(--text-muted)" }}>
+        <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>접근 권한이 없습니다</p>
+        <p style={{ fontSize: "13px" }}>단위 원가 분석은 사업장 관리자(admin)만 확인할 수 있습니다.</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>단위 원가 분석</h1>
         <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>BOM 기반 제품 단위당 자재 원가를 산출합니다. · {data.length}개 제품</p>
@@ -76,7 +87,8 @@ export default function CostAnalysisPage() {
                     <td style={{ padding: "12px 14px" }}>
                       {row.product_unit_price > 0 ? (
                         <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700,
-                          backgroundColor: isNegMargin ? "#FEF2F2" : row.margin_rate < 20 ? "#FEF9C3" : "#DCFCE7",
+                          backgroundColor: isNegMargin ? "rgba(220,38,38,0.12)" : row.margin_rate < 20 ? "rgba(161,98,7,0.12)" : "rgba(21,128,61,0.12)",
+                          border: isNegMargin ? "1px solid rgba(220,38,38,0.40)" : row.margin_rate < 20 ? "1px solid rgba(161,98,7,0.40)" : "1px solid rgba(21,128,61,0.40)",
                           color: isNegMargin ? "#DC2626" : row.margin_rate < 20 ? "#A16207" : "#15803D" }}>
                           {fmt(row.margin_rate, 1)}%
                         </span>
@@ -116,7 +128,7 @@ export default function CostAnalysisPage() {
             </div>
 
             {selected.product_unit_price === 0 && (
-              <p style={{ fontSize: "11px", color: "#F59E0B", padding: "8px 12px", backgroundColor: "#FFFBEB", borderRadius: "8px", marginBottom: "14px" }}>
+              <p style={{ fontSize: "11px", color: "#D97706", padding: "8px 12px", backgroundColor: "rgba(217,119,6,0.12)", border: "1px solid rgba(217,119,6,0.40)", borderRadius: "8px", marginBottom: "14px" }}>
                 ※ 판매 단가가 설정되지 않았습니다. 품목 관리에서 기준단가를 입력하면 마진을 계산할 수 있습니다.
               </p>
             )}

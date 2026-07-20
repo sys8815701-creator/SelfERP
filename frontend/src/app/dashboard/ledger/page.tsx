@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Plus, Search, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import api from "@/lib/api";
 import QuickJournalModal from "../QuickJournalModal";
+import { useRole, canWrite } from "@/hooks/useRole";
 
 interface Transaction {
   id: number; date: string; description: string;
@@ -21,11 +22,12 @@ const PERIOD_TYPES: { key: PeriodType; label: string }[] = [
   { key: "daily",    label: "일별" },
   { key: "monthly",  label: "월별" },
   { key: "quarterly",label: "분기별" },
-  { key: "halfyear", label: "상·하반기" },
+  { key: "halfyear", label: "상 · 하반기" },
   { key: "yearly",   label: "연도별" },
 ];
 
 function LedgerContent() {
+  const role = useRole();
   const searchParams = useSearchParams();
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +59,8 @@ function LedgerContent() {
     try {
       const res = await api.get("/api/dashboard/recent-transactions?limit=500");
       setTxs(res.data);
+    } catch (e) {
+      console.error("장부 거래 내역을 불러오지 못했습니다.", e);
     } finally { setLoading(false); }
   }, []);
 
@@ -70,7 +74,11 @@ function LedgerContent() {
 
   const matchPeriod = (date: string) => {
     switch (periodType) {
-      case "all":      return true;
+      // "전체"는 기간 유형(일/분기/반기/연도)만 안 고른 상태일 뿐, 상단 달력이 정해주는
+      // "현재 조회 월"이라는 공통 맥락에서는 벗어나지 않는다 — 그래야 카드·경비·OCR 등
+      // 다른 페이지들과 마찬가지로 상단 달력을 바꾸면 이 탭도 항상 반응한다.
+      // (이전엔 true를 반환해 달을 바꿔도 "전체" 탭만 그대로 보이던 것이 버그였음)
+      case "all":      return date.startsWith(month);
       case "daily":    return date === selectedDay;
       case "monthly":  return date.startsWith(month);
       case "quarterly": {
@@ -101,8 +109,8 @@ function LedgerContent() {
   const totalExpense = filtered.filter(t => !t.is_income).reduce((s, t) => s + t.withdrawal, 0);
 
   const card: React.CSSProperties = { backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)" };
-  const tabBtn = (a: boolean): React.CSSProperties => ({ padding: "5px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, backgroundColor: a ? "var(--accent)" : "var(--bg-surface-2)", color: a ? "var(--accent-text)" : "var(--text-muted)" });
-  const periodBtn = (a: boolean): React.CSSProperties => ({ flex: 1, padding: "5px 0", borderRadius: "7px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, backgroundColor: a ? "var(--accent)" : "transparent", color: a ? "var(--accent-text)" : "var(--text-muted)", transition: "all 0.15s" });
+  const tabBtn = (a: boolean): React.CSSProperties => ({ padding: "5px 14px", borderRadius: "7px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, backgroundColor: a ? "var(--bg-surface)" : "transparent", color: a ? "var(--text-primary)" : "var(--text-muted)", boxShadow: a ? "var(--shadow)" : "none", transition: "all 0.15s" });
+  const periodBtn = (a: boolean): React.CSSProperties => ({ flex: 1, padding: "5px 0", borderRadius: "7px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, backgroundColor: a ? "var(--bg-surface)" : "transparent", color: a ? "var(--text-primary)" : "var(--text-muted)", boxShadow: a ? "var(--shadow)" : "none", transition: "all 0.15s" });
   const navBtn: React.CSSProperties = { background: "none", border: "1px solid var(--border)", borderRadius: "6px", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-muted)", flexShrink: 0 };
 
   return (
@@ -115,9 +123,11 @@ function LedgerContent() {
             <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>회계 장부</h1>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "2px" }}>전체 거래 내역을 조회하고 관리하세요</p>
           </div>
-          <button onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "10px", padding: "10px 18px", fontSize: "13px", fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 8px rgba(255,190,80,0.3)" }}>
-            <Plus size={15} /> 거래 추가
-          </button>
+          {canWrite(role) && (
+            <button onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "10px", padding: "10px 18px", fontSize: "13px", fontWeight: 800, cursor: "pointer" }}>
+              <Plus size={15} /> 거래 추가
+            </button>
+          )}
         </div>
 
         {/* 요약 */}
@@ -165,14 +175,14 @@ function LedgerContent() {
               </div>
             )}
             {periodType === "quarterly" && (
-              <div style={{ display: "flex", gap: "4px" }}>
+              <div style={{ display: "flex", gap: "2px", backgroundColor: "var(--bg-surface-2)", borderRadius: "9px", padding: "3px" }}>
                 {[1, 2, 3, 4].map(q => (
                   <button key={q} onClick={() => setSelectedQ(q)} style={tabBtn(selectedQ === q)}>Q{q}</button>
                 ))}
               </div>
             )}
             {periodType === "halfyear" && (
-              <div style={{ display: "flex", gap: "4px" }}>
+              <div style={{ display: "flex", gap: "2px", backgroundColor: "var(--bg-surface-2)", borderRadius: "9px", padding: "3px" }}>
                 {(["H1", "H2"] as const).map(h => (
                   <button key={h} onClick={() => setSelectedHalf(h)} style={tabBtn(selectedHalf === h)}>
                     {h === "H1" ? "상반기" : "하반기"}
@@ -190,7 +200,7 @@ function LedgerContent() {
               <Search size={14} color="var(--text-muted)" />
               <input value={q} onChange={e => setQ(e.target.value)} placeholder="거래처, 카테고리 검색..." style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: "13px", color: "var(--text-primary)" }} />
             </div>
-            <div style={{ display: "flex", gap: "4px" }}>
+            <div style={{ display: "flex", gap: "2px", backgroundColor: "var(--bg-surface-2)", borderRadius: "9px", padding: "3px" }}>
               {(["all", "income", "expense"] as const).map(t => (
                 <button key={t} onClick={() => setTxType(t)} style={tabBtn(txType === t)}>
                   {t === "all" ? "전체" : t === "income" ? "수입" : "지출"}
@@ -218,7 +228,7 @@ function LedgerContent() {
               {loading ? (
                 <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>불러오는 중...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>거래 내역이 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>거래 내역이 없습니다</td></tr>
               ) : paged.map((tx, i) => {
                 const d = new Date(tx.date + "T00:00:00");
                 return (

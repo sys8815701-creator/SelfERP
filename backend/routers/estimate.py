@@ -130,15 +130,15 @@ def update_estimate(
         if k == "items":
             for item in e.items:
                 db.delete(item)
-            supply, tax, total = _calc_totals(v)
+            supply, tax, total = _calc_totals(body.items)
             e.supply_amount = supply
             e.tax_amount    = tax
             e.total_amount  = total
-            for it in v:
-                amt = round(it["quantity"] * it["unit_price"], 2)
+            for it in body.items:
+                amt = round(it.quantity * it.unit_price, 2)
                 e.items.append(EstimateItem(
-                    item_name=it["item_name"], quantity=it["quantity"],
-                    unit_price=it["unit_price"], amount=amt, note=it.get("note"),
+                    item_name=it.item_name, quantity=it.quantity,
+                    unit_price=it.unit_price, amount=amt, note=it.note,
                 ))
         else:
             setattr(e, k, v)

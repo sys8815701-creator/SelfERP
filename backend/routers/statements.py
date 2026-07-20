@@ -2,18 +2,30 @@
 재무제표 자동 생성 라우터
 기반 데이터: BankTransaction (입출금) + CardSale (카드매출) + AccountReceivable/Payable (미수금/미지급금)
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from typing import Optional
 from datetime import date
 from core.database import get_db
-from core.deps import get_current_business
+from core.deps import get_current_business, get_current_user
+from models.user import User
+from models.business import Business
 from models.bank_transaction import BankTransaction
 from models.card_sale import CardSale
 from models.ar_ap import AccountReceivable, AccountPayable
 
 router = APIRouter(prefix="/api/accounting/statements", tags=["statements"])
+
+
+def require_admin(
+    current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
+) -> Business:
+    """재무제표는 사업장 admin만 열람 가능 (프론트 MENU_ACCESS와 동일한 admin-only 정책)."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="재무제표를 열람할 권한이 없습니다.")
+    return business
 
 
 def _sum(q) -> float:
@@ -27,7 +39,7 @@ def income_statement(
     year:   int,
     month:  Optional[int] = None,
     db:     Session = Depends(get_db),
-    business=Depends(get_current_business),
+    business=Depends(require_admin),
 ):
     """
     손익계산서 (Income Statement)
@@ -106,7 +118,7 @@ def income_statement(
 def balance_sheet(
     as_of_date: Optional[str] = None,
     db: Session = Depends(get_db),
-    business=Depends(get_current_business),
+    business=Depends(require_admin),
 ):
     """
     대차대조표 (Balance Sheet) - 특정 날짜 기준
@@ -143,7 +155,15 @@ def balance_sheet(
     # 총자산 = 유동자산 (단순화)
     total_assets = current_assets
     total_liabilities = current_liabilities
-    total_equity = total_assets - total_liabilities
+
+    # 자본(이익잉여금) — 은행 거래 입출금 누계로 총자산과 독립적으로 산출
+    # (bank_balance는 거래별 balance 컬럼, 아래는 deposit-withdrawal 누계이므로
+    #  둘이 다르면 실제로 장부 정합성이 깨진 것 — 의미 있는 검증이 됨)
+    cum_flow = _sum(db.query(func.sum(BankTransaction.deposit - BankTransaction.withdrawal)).filter(
+        BankTransaction.business_id == bid,
+        BankTransaction.transaction_date <= today,
+    ))
+    total_equity = cum_flow + ar_balance - ap_balance
 
     return {
         "as_of_date": str(today),
@@ -165,7 +185,7 @@ def balance_sheet(
         "equity": {
             "total": total_equity,
         },
-        "check": total_assets == total_liabilities + total_equity,
+        "check": abs(total_assets - (total_liabilities + total_equity)) < 1,
     }
 
 
@@ -176,7 +196,7 @@ def cash_flow(
     year:  int,
     month: Optional[int] = None,
     db:    Session = Depends(get_db),
-    business=Depends(get_current_business),
+    business=Depends(require_admin),
 ):
     """
     현금흐름표: BankTransaction 기반 월별 입출금 흐름

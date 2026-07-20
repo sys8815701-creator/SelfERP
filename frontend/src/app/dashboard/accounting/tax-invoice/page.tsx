@@ -2,15 +2,16 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
 
-const DIR_COLOR: Record<string, { bg: string; color: string }> = {
-  발행: { bg: "#DCFCE7", color: "#15803D" },
-  수취: { bg: "#DBEAFE", color: "#1D4ED8" },
+const DIR_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  발행: { backgroundColor: "rgba(21,128,61,0.12)",  color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
+  수취: { backgroundColor: "rgba(29,78,216,0.12)",  color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.40)" },
 };
-const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-  임시저장:  { bg: "#F3F4F6", color: "#6B7280" },
-  발행완료:  { bg: "#DCFCE7", color: "#15803D" },
-  취소:      { bg: "#FEF2F2", color: "#DC2626" },
+const STATUS_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  임시저장: { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" },
+  발행완료: { backgroundColor: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
+  취소:     { backgroundColor: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
 };
 
 const EMPTY = { vendor_id: "", direction: "발행", invoice_no: "", issue_date: "", supply_amount: "", tax_amount: "", item_name: "", status: "임시저장", note: "" };
@@ -35,6 +36,7 @@ export default function TaxInvoicePage() {
   const [form, setForm]           = useState<any>(EMPTY);
   const [saving, setSaving]       = useState(false);
   const [autoTax, setAutoTax]     = useState(true);
+  const [modal, setModal]         = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
 
@@ -97,23 +99,35 @@ export default function TaxInvoicePage() {
       }
       setShowModal(false);
       await load();
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+    }
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("세금계산서를 삭제하시겠습니까?")) return;
-    await api.delete(`/api/accounting/tax-invoice/${id}`, { headers: { "X-Business-Id": bizId() } });
-    await load();
+  const handleDelete = (id: number) => {
+    setModal({ title: "삭제 확인", message: "세금계산서를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/accounting/tax-invoice/${id}`, { headers: { "X-Business-Id": bizId() } });
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "삭제에 실패했습니다.", variant: "error" });
+        }
+      } });
   };
 
   const handleStatusChange = async (item: any, newStatus: string) => {
-    await api.put(`/api/accounting/tax-invoice/${item.id}`, { status: newStatus }, { headers: { "X-Business-Id": bizId() } });
-    await load();
+    try {
+      await api.put(`/api/accounting/tax-invoice/${item.id}`, { status: newStatus }, { headers: { "X-Business-Id": bizId() } });
+      await load();
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "상태 변경에 실패했습니다.", variant: "error" });
+    }
   };
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       {/* 헤더 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
@@ -121,7 +135,7 @@ export default function TaxInvoicePage() {
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>매출/매입 세금계산서를 관리합니다. · {list.length}건</p>
         </div>
         <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 세금계산서 등록
         </button>
       </div>
@@ -135,7 +149,7 @@ export default function TaxInvoicePage() {
             { label: "부가세 납부 예정",  value: fmt(summary.vat_payable), warn: summary.vat_payable > 0 },
             { label: "매출 세액",  value: fmt(summary.issued_tax), sub: `매입세액 ${fmt(summary.received_tax)}` },
           ].map(card => (
-            <div key={card.label} style={{ backgroundColor: "var(--bg-surface)", border: `1px solid ${(card as any).warn ? "#FCA5A5" : "var(--border)"}`, borderRadius: "12px", padding: "16px 18px" }}>
+            <div key={card.label} style={{ backgroundColor: (card as any).warn ? "rgba(220,38,38,0.12)" : "var(--bg-surface)", border: `1px solid ${(card as any).warn ? "rgba(220,38,38,0.40)" : "var(--border)"}`, borderRadius: "12px", padding: "16px 18px" }}>
               <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{card.label}</p>
               <p style={{ fontSize: "18px", fontWeight: 900, color: (card as any).warn && summary.vat_payable > 0 ? "#DC2626" : "var(--text-primary)", lineHeight: 1 }}>{card.value}</p>
               {(card as any).sub && <p style={{ fontSize: "11px", color: "var(--text-subtle)", marginTop: "4px" }}>{(card as any).sub}</p>}
@@ -180,12 +194,12 @@ export default function TaxInvoicePage() {
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
             ) : list.length === 0 ? (
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
-                등록된 세금계산서가 없습니다.<br />
-                <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>세금계산서 등록</button>
+                등록된 세금계산서가 없습니다<br />
+                <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>세금계산서 등록</button>
               </td></tr>
             ) : list.map((item, i) => {
-              const dc = DIR_COLOR[item.direction] || { bg: "#F3F4F6", color: "#374151" };
-              const sc = STATUS_COLOR[item.status]  || { bg: "#F3F4F6", color: "#374151" };
+              const dc = DIR_COLOR[item.direction] || { backgroundColor: "rgba(107,114,128,0.10)", color: "#374151", border: "1px solid rgba(107,114,128,0.30)" };
+              const sc = STATUS_COLOR[item.status]  || { backgroundColor: "rgba(107,114,128,0.10)", color: "#374151", border: "1px solid rgba(107,114,128,0.30)" };
               return (
                 <tr key={item.id}
                   style={{ borderBottom: i < list.length - 1 ? "1px solid var(--border-subtle)" : "none" }}
@@ -204,7 +218,7 @@ export default function TaxInvoicePage() {
                     <select
                       value={item.status}
                       onChange={e => { e.stopPropagation(); handleStatusChange(item, e.target.value); }}
-                      style={{ padding: "4px 8px", borderRadius: "6px", border: "none", fontSize: "11px", fontWeight: 700, ...sc, cursor: "pointer" }}>
+                      style={{ padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, ...sc, cursor: "pointer" }}>
                       <option value="임시저장">임시저장</option>
                       <option value="발행완료">발행완료</option>
                       <option value="취소">취소</option>
@@ -215,7 +229,7 @@ export default function TaxInvoicePage() {
                       <button onClick={() => openEdit(item)}
                         style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
                       <button onClick={() => handleDelete(item.id)}
-                        style={{ fontSize: "12px", color: "#EF4444", background: "none", border: "1px solid #FCA5A5", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
+                        style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
                     </div>
                   </td>
                 </tr>
@@ -224,6 +238,8 @@ export default function TaxInvoicePage() {
           </tbody>
         </table>
       </div>
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {/* 등록/수정 모달 */}
       {showModal && (
@@ -322,7 +338,7 @@ export default function TaxInvoicePage() {
 
             <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
               <button onClick={handleSave} disabled={saving || !form.issue_date || !form.supply_amount}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : editing ? "수정 완료" : "등록"}
               </button>
               <button onClick={() => setShowModal(false)}

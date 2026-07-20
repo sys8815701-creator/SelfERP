@@ -110,7 +110,7 @@ export default function DashboardPage() {
   const [aiOpen, setAiOpen] = useState(true);
   const [aiInput, setAiInput] = useState("");
   const [aiMessages, setAiMessages] = useState<{ role: "ai" | "user"; text: string }[]>([
-    { role: "ai", text: "안녕하세요! 오늘 사업 현황을 분석해드릴게요. 무엇이든 물어보세요." },
+    { role: "ai", text: "안녕하세요! 오늘 사업 현황을 분석해드릴게요. 무엇이든 물어보세요" },
   ]);
   const [aiLoading, setAiLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -249,7 +249,7 @@ export default function DashboardPage() {
       const res = await api.post("/api/ai/chat", { message: q });
       setAiMessages(prev => [...prev, { role: "ai", text: res.data.reply }]);
     } catch {
-      setAiMessages(prev => [...prev, { role: "ai", text: "잠시 후 다시 시도해 주세요." }]);
+      setAiMessages(prev => [...prev, { role: "ai", text: "잠시 후 다시 시도해 주세요" }]);
     } finally { setAiLoading(false); }
   };
 
@@ -265,7 +265,7 @@ export default function DashboardPage() {
   const exportCsv = async () => {
     setKpiMenuOpen(null);
     if (!isPro) {
-      setModal({ title: "PRO 플랜 전용", message: "CSV 내보내기 기능은 PRO 플랜에서 제공됩니다.\n지금 업그레이드하고 데이터를 활용하세요.", variant: "info", showCancel: true, confirmLabel: "PRO 가입하기", onConfirm: () => router.push("/dashboard/pro") });
+      setModal({ title: "PRO 플랜 전용", message: "CSV 내보내기 기능은 PRO 플랜에서 제공됩니다.\n지금 업그레이드하고 데이터를 활용하세요", variant: "info", showCancel: true, confirmLabel: "PRO 가입하기", onConfirm: () => router.push("/dashboard/pro") });
       return;
     }
     try {
@@ -277,7 +277,7 @@ export default function DashboardPage() {
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `거래내역_${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    } catch { setModal({ message: "CSV 내보내기에 실패했습니다.", variant: "error" }); }
+    } catch { setModal({ message: "CSV 내보내기에 실패했습니다", variant: "error" }); }
   };
   const now = new Date();
 
@@ -463,12 +463,12 @@ export default function DashboardPage() {
                   </button>
                 ))}
                 <Link href="/dashboard/ledger" style={{ marginLeft: "8px", fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}>
-                  전체보기
+                  전체 보기
                 </Link>
               </div>
             </div>
             {filteredTx.length === 0 ? (
-              <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px", padding: "24px 0" }}>거래 내역이 없습니다.</p>
+              <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px", padding: "24px 0" }}>거래 내역이 없습니다</p>
             ) : (
               filteredTx.slice(0, 8).map((tx, i) => {
                 const d = new Date(tx.date + "T00:00:00");

@@ -1,5 +1,6 @@
 import csv
 import io
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -31,21 +32,19 @@ def _csv_response(rows: list[dict], filename: str) -> StreamingResponse:
         writer.writerows(rows)
     buf.seek(0)
     content = "﻿" + buf.getvalue()  # UTF-8 BOM — 한글 Excel 호환
+    # 한글 파일명은 Latin-1로 인코딩할 수 없어 RFC 5987 형식(filename*)으로 전달
+    encoded = quote(f"{filename}.csv")
     return StreamingResponse(
         io.BytesIO(content.encode("utf-8")),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+        headers={"Content-Disposition": f"attachment; filename=export.csv; filename*=UTF-8''{encoded}"},
     )
 
 
 @router.get("/ledger")
 def export_ledger(biz: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     rows = []
-    journals = db.query(Journal).filter(Journal.created_by.isnot(None)).all()
-    # business_id 필터는 JournalLine → Account → business_id 경로가 없으므로
-    # Journal.created_by 기준으로 필터하지 않고 전체 조회 후 사업장 연결
-    # (실제 프로젝트 구조에 맞게 단순화)
-    for j in db.query(Journal).all():
+    for j in db.query(Journal).filter(Journal.business_id == biz.id).all():
         for line in j.lines:
             acct = db.query(Account).filter_by(id=line.account_id).first()
             rows.append({
@@ -173,15 +172,15 @@ def export_items(biz: Business = Depends(get_current_business), db: Session = De
 @router.get("/production-orders")
 def export_production_orders(biz: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     rows = []
-    for o in db.query(ProductionOrder).filter_by(business_id=biz.id).order_by(ProductionOrder.order_date.desc()).all():
+    for o in db.query(ProductionOrder).filter_by(business_id=biz.id).order_by(ProductionOrder.planned_date.desc()).all():
         prod_name = o.product.item_name if o.product else ""
+        completed_qty = sum(float(r.completed_qty or 0) for r in o.results)
         rows.append({
             "지시번호": o.order_no or "",
             "품목명": prod_name,
-            "지시일": o.order_date or "",
-            "완료예정일": o.due_date or "",
+            "계획일": o.planned_date or "",
             "계획수량": o.planned_qty or 0,
-            "완료수량": o.completed_qty or 0,
+            "완료수량": completed_qty,
             "상태": o.status or "",
             "비고": o.note or "",
         })
@@ -209,9 +208,10 @@ def export_inventory_logs(biz: Business = Depends(get_current_business), db: Ses
 def export_sales_orders(biz: Business = Depends(get_current_business), db: Session = Depends(get_db)):
     rows = []
     for o in db.query(SalesOrder).filter_by(business_id=biz.id).order_by(SalesOrder.order_date.desc()).all():
+        customer_name = o.vendor.vendor_name if o.vendor else ""
         rows.append({
             "수주번호": o.order_no or "",
-            "고객명": o.customer_name or "",
+            "고객명": customer_name,
             "수주일": o.order_date or "",
             "납기일": o.due_date or "",
             "총금액": o.total_amount or 0,
@@ -245,7 +245,7 @@ def export_returns(biz: Business = Depends(get_current_business), db: Session = 
         rows.append({
             "반품일": r.return_date or "",
             "품목명": item_name,
-            "수량": r.quantity or 0,
+            "수량": r.return_qty or 0,
             "사유": r.reason or "",
             "재고복원": "Y" if r.is_restocked else "N",
             "비고": r.note or "",

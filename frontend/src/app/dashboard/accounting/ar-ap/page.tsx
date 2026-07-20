@@ -2,19 +2,20 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
 
 type Tab = "ar" | "ap";
 
 const AR_STATUSES = ["미수", "일부수금", "완료", "대손"];
 const AP_STATUSES = ["미지급", "일부지급", "완료"];
 
-const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-  미수:    { bg: "#FEF2F2", color: "#DC2626" },
-  일부수금: { bg: "#FEF3C7", color: "#D97706" },
-  대손:    { bg: "#F3F4F6", color: "#9CA3AF" },
-  미지급:  { bg: "#FEF2F2", color: "#DC2626" },
-  일부지급: { bg: "#FEF3C7", color: "#D97706" },
-  완료:    { bg: "#DCFCE7", color: "#15803D" },
+const STATUS_COLOR: Record<string, { bg: string; color: string; border: string }> = {
+  미수:    { bg: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
+  일부수금: { bg: "rgba(217,119,6,0.12)",  color: "#D97706", border: "1px solid rgba(217,119,6,0.40)" },
+  대손:    { bg: "rgba(107,114,128,0.10)", color: "#9CA3AF", border: "1px solid rgba(107,114,128,0.30)" },
+  미지급:  { bg: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
+  일부지급: { bg: "rgba(217,119,6,0.12)",  color: "#D97706", border: "1px solid rgba(217,119,6,0.40)" },
+  완료:    { bg: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
 };
 
 const EMPTY_AR = { vendor_id: "", title: "", amount: "", paid_amount: "0", issue_date: "", due_date: "", status: "미수", note: "" };
@@ -28,7 +29,9 @@ function fmt(v: any) {
 
 function isOverdue(due_date: string, status: string) {
   if (status === "완료" || status === "대손") return false;
-  return new Date(due_date) < new Date();
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return due_date < todayStr;
 }
 
 export default function ArApPage() {
@@ -47,6 +50,7 @@ export default function ArApPage() {
   const [editing, setEditing]     = useState<any>(null);
   const [form, setForm]           = useState<any>(EMPTY_AR);
   const [saving, setSaving]       = useState(false);
+  const [modal, setModal]         = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
 
@@ -120,21 +124,33 @@ export default function ArApPage() {
       }
       setShowModal(false);
       await loadData();
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+    }
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("삭제하시겠습니까?")) return;
+  const handleDelete = (id: number) => {
     const path = tab === "ar" ? `/api/accounting/ar/${id}` : `/api/accounting/ap/${id}`;
-    await api.delete(path, { headers: { "X-Business-Id": bizId() } });
-    await loadData();
+    setModal({ title: "삭제 확인", message: "삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try {
+          await api.delete(path, { headers: { "X-Business-Id": bizId() } });
+          await loadData();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "삭제에 실패했습니다.", variant: "error" });
+        }
+      } });
   };
 
   const handleStatusChange = async (item: any, newStatus: string) => {
     const path = tab === "ar" ? `/api/accounting/ar/${item.id}` : `/api/accounting/ap/${item.id}`;
-    await api.put(path, { status: newStatus }, { headers: { "X-Business-Id": bizId() } });
-    await loadData();
+    try {
+      await api.put(path, { status: newStatus }, { headers: { "X-Business-Id": bizId() } });
+      await loadData();
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "상태 변경에 실패했습니다.", variant: "error" });
+    }
   };
 
   const list     = tab === "ar" ? arList : apList;
@@ -142,9 +158,10 @@ export default function ArApPage() {
   const statuses = tab === "ar" ? AR_STATUSES : AP_STATUSES;
 
   const tabStyle = (t: Tab) => ({
-    padding: "8px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 700,
-    backgroundColor: tab === t ? "var(--accent)" : "var(--bg-surface-2)",
-    color: tab === t ? "var(--accent-text)" : "var(--text-muted)",
+    padding: "8px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 700, transition: "all 0.15s",
+    backgroundColor: tab === t ? "var(--bg-surface)" : "transparent",
+    color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+    boxShadow: tab === t ? "var(--shadow)" : "none",
   });
 
   const F = (key: string, label: string, type = "text", opts?: string[]) => (
@@ -164,21 +181,21 @@ export default function ArApPage() {
   );
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       {/* 헤더 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>미수금 · 미지급금</h1>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>외상매출금(AR)과 외상매입금(AP)을 관리합니다.</p>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>외상매출금(AR)과 외상매입금(AP)을 관리합니다</p>
         </div>
         <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + {tab === "ar" ? "미수금 등록" : "미지급금 등록"}
         </button>
       </div>
 
       {/* 탭 */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+      <div style={{ display: "flex", gap: "4px", marginBottom: "20px", backgroundColor: "var(--bg-surface-2)", padding: "4px", borderRadius: "10px", width: "fit-content" }}>
         <button style={tabStyle("ar")} onClick={() => { setTab("ar"); setStatusFilter(""); }}>미수금 (AR)</button>
         <button style={tabStyle("ap")} onClick={() => { setTab("ap"); setStatusFilter(""); }}>미지급금 (AP)</button>
       </div>
@@ -192,7 +209,7 @@ export default function ArApPage() {
             { label: tab === "ar" ? "미수 잔액" : "미지급 잔액", value: fmt(summary.remaining), highlight: true },
             { label: "연체 건수",  value: `${summary.overdue_count}건`, warn: summary.overdue_count > 0 },
           ].map(card => (
-            <div key={card.label} style={{ backgroundColor: "var(--bg-surface)", border: `1px solid ${card.warn ? "#FCA5A5" : "var(--border)"}`, borderRadius: "12px", padding: "16px 18px" }}>
+            <div key={card.label} style={{ backgroundColor: card.warn ? "rgba(220,38,38,0.12)" : "var(--bg-surface)", border: `1px solid ${card.warn ? "rgba(220,38,38,0.40)" : "var(--border)"}`, borderRadius: "12px", padding: "16px 18px" }}>
               <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{card.label}</p>
               <p style={{ fontSize: "20px", fontWeight: 900, color: card.warn ? "#DC2626" : card.highlight ? "var(--accent)" : "var(--text-primary)", lineHeight: 1 }}>{card.value}</p>
             </div>
@@ -228,11 +245,11 @@ export default function ArApPage() {
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
             ) : list.length === 0 ? (
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
-                등록된 항목이 없습니다.<br />
-                <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>첫 항목 등록</button>
+                등록된 항목이 없습니다<br />
+                <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>첫 항목 등록</button>
               </td></tr>
             ) : list.map((item, i) => {
-              const sc = STATUS_COLOR[item.status] || { bg: "#F3F4F6", color: "#374151" };
+              const sc = STATUS_COLOR[item.status] || { bg: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" };
               const overdue = isOverdue(item.due_date, item.status);
               const remaining = parseFloat(item.amount) - parseFloat(item.paid_amount);
               return (
@@ -255,7 +272,7 @@ export default function ArApPage() {
                       value={item.status}
                       onChange={e => { e.stopPropagation(); handleStatusChange(item, e.target.value); }}
                       onClick={e => e.stopPropagation()}
-                      style={{ padding: "4px 8px", borderRadius: "6px", border: "none", fontSize: "11px", fontWeight: 700, backgroundColor: sc.bg, color: sc.color, cursor: "pointer" }}>
+                      style={{ padding: "4px 8px", borderRadius: "6px", border: sc.border, fontSize: "11px", fontWeight: 700, backgroundColor: sc.bg, color: sc.color, cursor: "pointer" }}>
                       {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </td>
@@ -264,7 +281,7 @@ export default function ArApPage() {
                       <button onClick={() => openEdit(item)}
                         style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
                       <button onClick={() => handleDelete(item.id)}
-                        style={{ fontSize: "12px", color: "#EF4444", background: "none", border: "1px solid #FCA5A5", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
+                        style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
                     </div>
                   </td>
                 </tr>
@@ -273,6 +290,8 @@ export default function ArApPage() {
           </tbody>
         </table>
       </div>
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {/* 등록/수정 모달 */}
       {showModal && (
@@ -316,7 +335,7 @@ export default function ArApPage() {
 
             <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
               <button onClick={handleSave} disabled={saving || !form.title || !form.amount || !form.issue_date || !form.due_date}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : editing ? "수정 완료" : "등록"}
               </button>
               <button onClick={() => setShowModal(false)}

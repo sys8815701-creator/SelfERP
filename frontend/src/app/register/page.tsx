@@ -77,13 +77,49 @@ export default function RegisterPage() {
 
   const [personalForm, setPersonalForm] = useState({
     name: "", email: "", password: "", confirmPassword: "", role: "employee",
+    phone: "", department: "", position: "", employee_number: "", hire_date: "",
+    business_number: "",
   });
+
+  const formatBizNumPersonal = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+  };
 
   const [businessForm, setBusinessForm] = useState({
     business_name: "", business_number: "", owner_name: "",
     industry: "", business_type: "", open_date: "", address: "",
     email: "", password: "", confirmPassword: "",
   });
+  const [bizNumVerified, setBizNumVerified] = useState(false);
+  const [bizNumVerifying, setBizNumVerifying] = useState(false);
+  const [bizNumError, setBizNumError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const formatBizNum = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+  };
+
+  const verifyBizNum = async () => {
+    setBizNumError(""); setBizNumVerifying(true);
+    try {
+      const res = await api.post("/api/pending-registration/verify-number", {
+        business_number: businessForm.business_number,
+      });
+      if (res.data.valid) {
+        setBizNumVerified(true);
+      } else {
+        setBizNumError("유효하지 않은 사업자등록번호입니다. 다시 확인해주세요.");
+      }
+    } catch {
+      setBizNumError("인증 중 오류가 발생했습니다.");
+    } finally { setBizNumVerifying(false); }
+  };
 
   const inputStyle: React.CSSProperties = {
     width: "100%", border: "1.5px solid var(--border)", borderRadius: "12px",
@@ -119,6 +155,12 @@ export default function RegisterPage() {
       await api.post("/api/auth/register", {
         name: personalForm.name, email: personalForm.email,
         password: personalForm.password, role: personalForm.role,
+        phone:           personalForm.phone           || undefined,
+        department_name: personalForm.department      || undefined,
+        position_name:   personalForm.position        || undefined,
+        employee_number: personalForm.employee_number || undefined,
+        hire_date:       personalForm.hire_date       || undefined,
+        business_number: personalForm.business_number || undefined,
       });
       router.push("/login");
     } catch (err: any) {
@@ -128,8 +170,12 @@ export default function RegisterPage() {
 
   const handleBusinessNext = (nextStep: number) => {
     let err = "";
-    if (step === 1) err = validateStep({ 상호명: businessForm.business_name, 사업자등록번호: businessForm.business_number, 대표자명: businessForm.owner_name });
-    else if (step === 2) err = validateStep({ 업종: businessForm.industry, 업태: businessForm.business_type, 개업일: businessForm.open_date, 주소: businessForm.address });
+    if (step === 1) {
+      if (!businessForm.business_name.trim() || !businessForm.owner_name.trim()) { setError("모든 항목을 입력해주세요."); return; }
+      if (!bizNumVerified) { setError("사업자등록번호 인증을 완료해주세요."); return; }
+    } else if (step === 2) {
+      err = validateStep({ 업종: businessForm.industry, 업태: businessForm.business_type, 개업일: businessForm.open_date, 주소: businessForm.address });
+    }
     if (err) { setError(err); return; }
     setError(""); setStep(nextStep);
   };
@@ -139,38 +185,27 @@ export default function RegisterPage() {
     if (err) { setError(err); return; }
     setError(""); setLoading(true);
     try {
-      await api.post("/api/auth/register", { email: businessForm.email, password: businessForm.password, name: businessForm.owner_name, role: "admin" });
-      const loginRes = await api.post("/api/auth/login", { email: businessForm.email, password: businessForm.password });
-      localStorage.setItem("access_token", loginRes.data.access_token);
-      await api.post("/api/business/", {
-        business_name: businessForm.business_name, business_number: businessForm.business_number,
-        owner_name: businessForm.owner_name, industry: businessForm.industry,
-        business_type: businessForm.business_type, open_date: businessForm.open_date || null,
+      await api.post("/api/pending-registration/submit", {
+        business_name: businessForm.business_name,
+        business_number: businessForm.business_number,
+        owner_name: businessForm.owner_name,
+        industry: businessForm.industry,
+        business_type: businessForm.business_type,
+        open_date: businessForm.open_date || null,
+        address: businessForm.address,
+        email: businessForm.email,
+        password: businessForm.password,
       });
-      router.push("/dashboard");
+      setSubmitted(true);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "가입 중 오류가 발생했습니다.");
+      setError(err.response?.data?.detail || "신청 중 오류가 발생했습니다.");
     } finally { setLoading(false); }
   };
 
   const progressWidth = step === 1 ? "33%" : step === 2 ? "66%" : "100%";
   const pwMismatch = (pw: string, c: string) => c.length > 0 && pw !== c;
 
-  const SocialButtons = () => (
-    <div style={{ display: "flex", justifyContent: "center", gap: "16px" }}>
-      {[
-        { bg: "#FEE500", node: <img src="https://upload.wikimedia.org/wikipedia/commons/e/e3/KakaoTalk_logo.svg" alt="카카오" style={{ width: "26px", height: "26px", objectFit: "contain" }} /> },
-        { bg: "#03C75A", node: <span style={{ color: "white", fontWeight: 900, fontSize: "20px" }}>N</span> },
-        { bg: "var(--bg-surface-2)", border: "1.5px solid var(--border)", node: <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="구글" style={{ width: "26px", height: "26px", objectFit: "contain" }} /> },
-      ].map((s, i) => (
-        <button key={i} disabled style={{ width: "52px", height: "52px", borderRadius: "50%", backgroundColor: s.bg, border: s.border || "none", cursor: "not-allowed", opacity: 0.6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {s.node}
-        </button>
-      ))}
-    </div>
-  );
-
-  const btnPrimary: React.CSSProperties = { width: "100%", backgroundColor: "var(--accent)", color: "var(--accent-text)", fontWeight: 800, padding: "16px", borderRadius: "12px", fontSize: "16px", letterSpacing: "4px", border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(255,190,80,0.3)" };
+const btnPrimary: React.CSSProperties = { width: "100%", backgroundColor: "var(--accent)", color: "var(--accent-text)", fontWeight: 800, padding: "16px", borderRadius: "12px", fontSize: "16px", letterSpacing: "4px", border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(255,190,80,0.3)" };
   const btnSecondary: React.CSSProperties = { border: "1.5px solid var(--border)", borderRadius: "12px", padding: "14px", fontSize: "15px", fontWeight: 600, backgroundColor: "var(--bg-surface-2)", color: "var(--text-secondary)", cursor: "pointer" };
 
   return (
@@ -323,35 +358,104 @@ export default function RegisterPage() {
                   <div style={{ width: 22, height: 22, borderRadius: "50%", backgroundColor: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 900, color: "var(--accent-text)", flexShrink: 0 }}>2</div>
                   <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>기본 정보 입력</span>
                 </div>
-                {[
-                  { label: "이름", key: "name", type: "text", placeholder: "홍길동" },
-                  { label: "비밀번호", key: "password", type: "password", placeholder: "비밀번호를 입력하세요 (8자 이상)" },
-                  { label: "비밀번호 확인", key: "confirmPassword", type: "password", placeholder: "비밀번호를 다시 입력하세요" },
-                ].map((f) => (
-                  <div key={f.key}>
-                    <label style={labelStyle}>{f.label} <span style={{ color: "#EF4444" }}>*</span></label>
-                    <input type={f.type} placeholder={f.placeholder}
-                      value={(personalForm as any)[f.key]}
-                      onChange={e => setPersonalForm({ ...personalForm, [f.key]: e.target.value })}
-                      style={f.key === "confirmPassword" && pwMismatch(personalForm.password, personalForm.confirmPassword) ? inputErrorStyle : inputStyle} />
-                    {f.key === "confirmPassword" && pwMismatch(personalForm.password, personalForm.confirmPassword) && (
-                      <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>비밀번호가 일치하지 않습니다.</p>
-                    )}
-                    {f.key === "confirmPassword" && personalForm.confirmPassword.length > 0 && personalForm.password === personalForm.confirmPassword && (
-                      <p style={{ color: "#22C55E", fontSize: "12px", marginTop: "6px" }}>✓ 비밀번호가 일치합니다.</p>
-                    )}
+
+                {/* 기본 정보 */}
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "6px" }}>기본 정보</p>
+                <div>
+                  <label style={labelStyle}>이름 <span style={{ color: "#EF4444" }}>*</span></label>
+                  <input type="text" placeholder="홍길동"
+                    value={personalForm.name}
+                    onChange={e => setPersonalForm({ ...personalForm, name: e.target.value })}
+                    style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>연락처</label>
+                  <input type="tel" placeholder="010-0000-0000"
+                    value={personalForm.phone}
+                    onChange={e => setPersonalForm({ ...personalForm, phone: e.target.value })}
+                    style={inputStyle} />
+                </div>
+
+                {/* 소속 사업장 */}
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "6px", marginTop: "4px" }}>
+                  소속 사업장 <span style={{ fontSize: "11px", fontWeight: 400 }}>(선택 · 입력 시 해당 사업장 관리자가 승인 후 연결)</span>
+                </p>
+                <div>
+                  <label style={labelStyle}>사업자등록번호</label>
+                  <input
+                    type="text"
+                    placeholder="000-00-00000"
+                    value={personalForm.business_number}
+                    onChange={e => setPersonalForm({ ...personalForm, business_number: formatBizNumPersonal(e.target.value) })}
+                    style={inputStyle}
+                  />
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "5px" }}>
+                    입력하지 않아도 가입 가능합니다. 입력 시 사업장 관리자가 승인 후 자동 연결됩니다.
+                  </p>
+                </div>
+
+                {/* 직장 정보 */}
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "6px", marginTop: "4px" }}>
+                  직장 정보 <span style={{ fontSize: "11px", fontWeight: 400 }}>(선택 · 관리자가 배정 시 참고)</span>
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={labelStyle}>부서</label>
+                    <input type="text" placeholder="예) 회계팀"
+                      value={personalForm.department}
+                      onChange={e => setPersonalForm({ ...personalForm, department: e.target.value })}
+                      style={inputStyle} />
                   </div>
-                ))}
+                  <div>
+                    <label style={labelStyle}>직급</label>
+                    <input type="text" placeholder="예) 대리"
+                      value={personalForm.position}
+                      onChange={e => setPersonalForm({ ...personalForm, position: e.target.value })}
+                      style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>사원번호</label>
+                    <input type="text" placeholder="예) EMP-2024-001"
+                      value={personalForm.employee_number}
+                      onChange={e => setPersonalForm({ ...personalForm, employee_number: e.target.value })}
+                      style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>입사일</label>
+                    <input type="date"
+                      value={personalForm.hire_date}
+                      onChange={e => setPersonalForm({ ...personalForm, hire_date: e.target.value })}
+                      style={inputStyle} />
+                  </div>
+                </div>
+
+                {/* 계정 보안 */}
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "6px", marginTop: "4px" }}>계정 보안</p>
+                <div>
+                  <label style={labelStyle}>비밀번호 <span style={{ color: "#EF4444" }}>*</span></label>
+                  <input type="password" placeholder="8자 이상 입력하세요"
+                    value={personalForm.password}
+                    onChange={e => setPersonalForm({ ...personalForm, password: e.target.value })}
+                    style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>비밀번호 확인 <span style={{ color: "#EF4444" }}>*</span></label>
+                  <input type="password" placeholder="비밀번호를 다시 입력하세요"
+                    value={personalForm.confirmPassword}
+                    onChange={e => setPersonalForm({ ...personalForm, confirmPassword: e.target.value })}
+                    style={pwMismatch(personalForm.password, personalForm.confirmPassword) ? inputErrorStyle : inputStyle} />
+                  {pwMismatch(personalForm.password, personalForm.confirmPassword) && (
+                    <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>비밀번호가 일치하지 않습니다.</p>
+                  )}
+                  {personalForm.confirmPassword.length > 0 && personalForm.password === personalForm.confirmPassword && (
+                    <p style={{ color: "#22C55E", fontSize: "12px", marginTop: "6px" }}>✓ 비밀번호가 일치합니다.</p>
+                  )}
+                </div>
+
                 {error && <p style={{ color: "#EF4444", fontSize: "13px" }}>{error}</p>}
                 <button onClick={handlePersonalRegister} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>
                   {loading ? "처리 중..." : "회원가입"}
                 </button>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border)" }} />
-                  <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>또는 소셜 로그인</span>
-                  <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border)" }} />
-                </div>
-                <SocialButtons />
               </>
             )}
 
@@ -364,7 +468,7 @@ export default function RegisterPage() {
         )}
 
         {/* 기업 회원가입 */}
-        {accountType === "business" && (
+        {accountType === "business" && !submitted && (
           <div>
             {/* 진행률 */}
             <div style={{ marginBottom: "28px" }}>
@@ -383,17 +487,33 @@ export default function RegisterPage() {
             {/* STEP 1 */}
             {step === 1 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {[
-                  { label: "상호명", key: "business_name", placeholder: "예) 행복한 베이커리" },
-                  { label: "사업자등록번호", key: "business_number", placeholder: "000-00-00000" },
-                  { label: "대표자명", key: "owner_name", placeholder: "홍길동" },
-                ].map((f) => (
-                  <div key={f.key}>
-                    <label style={labelStyle}>{f.label} <span style={{ color: "#EF4444" }}>*</span></label>
-                    <input type="text" placeholder={f.placeholder} value={(businessForm as any)[f.key]}
-                      onChange={e => setBusinessForm({ ...businessForm, [f.key]: e.target.value })} style={inputStyle} />
+                <div>
+                  <label style={labelStyle}>상호명 <span style={{ color: "#EF4444" }}>*</span></label>
+                  <input type="text" placeholder="예) 행복한 베이커리" value={businessForm.business_name}
+                    onChange={e => setBusinessForm({ ...businessForm, business_name: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>사업자등록번호 <span style={{ color: "#EF4444" }}>*</span></label>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <input type="text" placeholder="000-00-00000" value={businessForm.business_number}
+                      onChange={e => { setBizNumVerified(false); setBizNumError(""); setBusinessForm({ ...businessForm, business_number: formatBizNum(e.target.value) }); }}
+                      disabled={bizNumVerified}
+                      style={{ ...inputStyle, flex: 1, border: bizNumVerified ? "1.5px solid #22C55E" : "1.5px solid var(--border)" }} />
+                    <button onClick={bizNumVerified ? () => { setBizNumVerified(false); setBizNumError(""); } : verifyBizNum}
+                      disabled={bizNumVerifying || !businessForm.business_number.trim()}
+                      style={{ padding: "14px 16px", borderRadius: "12px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 700, fontSize: "14px",
+                        backgroundColor: bizNumVerified ? "rgba(34,197,94,0.12)" : "var(--accent-light)", color: bizNumVerified ? "#22C55E" : "var(--accent)", border: bizNumVerified ? "1.5px solid rgba(34,197,94,0.40)" : "1.5px solid #C49A30", opacity: bizNumVerifying ? 0.7 : 1 }}>
+                      {bizNumVerified ? "✓ 인증됨" : bizNumVerifying ? "확인 중" : "인증하기"}
+                    </button>
                   </div>
-                ))}
+                  {bizNumError && <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>{bizNumError}</p>}
+                  {bizNumVerified && <p style={{ color: "#22C55E", fontSize: "12px", marginTop: "6px" }}>✓ 유효한 사업자등록번호입니다</p>}
+                </div>
+                <div>
+                  <label style={labelStyle}>대표자명 <span style={{ color: "#EF4444" }}>*</span></label>
+                  <input type="text" placeholder="홍길동" value={businessForm.owner_name}
+                    onChange={e => setBusinessForm({ ...businessForm, owner_name: e.target.value })} style={inputStyle} />
+                </div>
                 {error && <p style={{ color: "#EF4444", fontSize: "13px" }}>{error}</p>}
                 <button onClick={() => handleBusinessNext(2)} style={btnPrimary}>다음</button>
               </div>
@@ -454,11 +574,41 @@ export default function RegisterPage() {
             )}
 
             <p style={{ textAlign: "center", fontSize: "13px", marginTop: "20px" }}>
-              <button onClick={() => { setAccountType(null); setStep(1); setError(""); }}
+              <button onClick={() => { setAccountType(null); setStep(1); setError(""); setBizNumVerified(false); }}
                 style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "13px", cursor: "pointer" }}>
                 ← 유형 선택으로 돌아가기
               </button>
             </p>
+          </div>
+        )}
+
+        {/* 신청 완료 — 승인 대기 */}
+        {accountType === "business" && submitted && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ width: "72px", height: "72px", borderRadius: "50%", backgroundColor: "var(--accent-light)", border: "2px solid #C49A30", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: "32px" }}>
+              ⏳
+            </div>
+            <h2 style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "10px" }}>신청 완료</h2>
+            <p style={{ fontSize: "14px", color: "var(--text-muted)", lineHeight: 1.7, marginBottom: "24px" }}>
+              기업 회원가입 신청이 접수되었습니다<br />
+              통합 관리자 승인 후 계정이 활성화됩니다<br />
+              <strong style={{ color: "var(--accent)" }}>{businessForm.email}</strong>로 결과를 안내드립니다
+            </p>
+            <div style={{ backgroundColor: "var(--bg-surface-2)", borderRadius: "14px", padding: "16px", border: "1px solid var(--border)", marginBottom: "24px", textAlign: "left" }}>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-subtle)", letterSpacing: "0.5px", marginBottom: "10px" }}>신청 내역</p>
+              {[
+                { label: "상호명", value: businessForm.business_name },
+                { label: "사업자번호", value: businessForm.business_number },
+                { label: "대표자", value: businessForm.owner_name },
+                { label: "이메일", value: businessForm.email },
+              ].map(row => (
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{row.label}</span>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => router.push("/login")} style={btnPrimary}>로그인 페이지로</button>
           </div>
         )}
       </div>

@@ -36,16 +36,16 @@ export default function SecurityPage() {
   const strengthColor = ["", "#EF4444", "#f97316", "var(--accent)", "#22C55E", "#16A34A"][strength] || "transparent";
 
   const save = async () => {
-    if (!currentPw || !newPw || !confirmPw) { setMsg("모든 항목을 입력해 주세요."); setMsgType("err"); return; }
-    if (newPw !== confirmPw) { setMsg("새 비밀번호가 일치하지 않습니다."); setMsgType("err"); return; }
-    if (newPw.length < 8) { setMsg("비밀번호는 8자 이상이어야 합니다."); setMsgType("err"); return; }
+    if (!currentPw || !newPw || !confirmPw) { setMsg("모든 항목을 입력해 주세요"); setMsgType("err"); return; }
+    if (newPw !== confirmPw) { setMsg("새 비밀번호가 일치하지 않습니다"); setMsgType("err"); return; }
+    if (newPw.length < 8) { setMsg("비밀번호는 8자 이상이어야 합니다"); setMsgType("err"); return; }
     setSaving(true); setMsg("");
     try {
       await api.patch("/api/auth/password", { current_password: currentPw, new_password: newPw });
-      setMsg("비밀번호가 변경되었습니다."); setMsgType("ok");
+      setMsg("비밀번호가 변경되었습니다"); setMsgType("ok");
       setCurrentPw(""); setNewPw(""); setConfirmPw("");
     } catch (e: any) {
-      setMsg(e?.response?.data?.detail ?? "비밀번호 변경에 실패했습니다."); setMsgType("err");
+      setMsg(e?.response?.data?.detail ?? "비밀번호 변경에 실패했습니다"); setMsgType("err");
     } finally {
       setSaving(false);
       setTimeout(() => setMsg(""), 4000);
@@ -158,7 +158,7 @@ export default function SecurityPage() {
         <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent)", marginBottom: "10px" }}>✦ 안전한 비밀번호 설정 안내</p>
         {[
           "8자 이상의 비밀번호를 사용하세요",
-          "영문 대·소문자, 숫자, 특수문자를 조합하세요",
+          "영문 대 · 소문자, 숫자, 특수문자를 조합하세요",
           "다른 서비스와 동일한 비밀번호는 피하세요",
           "정기적으로 (3개월마다) 비밀번호를 변경하세요",
         ].map(t => (

@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
       <div>
         <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>경영 분석</h1>
         <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "2px" }}>
-          월별 수익·비용 현황과 비용 구조를 한눈에 파악하세요
+          월별 수익 · 비용 현황과 비용 구조를 한눈에 파악하세요
         </p>
       </div>
 
@@ -145,18 +145,21 @@ export default function AnalyticsPage() {
               ))}
             </div>
             {/* 보기 전환 */}
-            {(["chart", "table"] as const).map(v => (
-              <button key={v} onClick={() => setView(v)} style={{
-                padding: "4px 10px", borderRadius: "7px", border: "none", cursor: "pointer",
-                fontSize: "11px", fontWeight: 600,
-                backgroundColor: view === v ? "var(--accent)" : "var(--bg-surface-2)",
-                color: view === v ? "var(--accent-text)" : "var(--text-muted)",
-                display: "flex", alignItems: "center", gap: "4px",
-              }}>
-                {v === "chart" ? <BarChart2 size={11} /> : <Table2 size={11} />}
-                {v === "chart" ? "차트" : "표"}
-              </button>
-            ))}
+            <div style={{ display: "flex", gap: "2px", backgroundColor: "var(--bg-surface-2)", borderRadius: "9px", padding: "3px" }}>
+              {(["chart", "table"] as const).map(v => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  padding: "4px 10px", borderRadius: "7px", border: "none", cursor: "pointer",
+                  fontSize: "11px", fontWeight: 600,
+                  backgroundColor: view === v ? "var(--bg-surface)" : "transparent",
+                  color: view === v ? "var(--text-primary)" : "var(--text-muted)",
+                  boxShadow: view === v ? "var(--shadow)" : "none",
+                  display: "flex", alignItems: "center", gap: "4px", transition: "all 0.15s",
+                }}>
+                  {v === "chart" ? <BarChart2 size={11} /> : <Table2 size={11} />}
+                  {v === "chart" ? "차트" : "표"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

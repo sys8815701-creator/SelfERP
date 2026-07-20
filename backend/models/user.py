@@ -11,9 +11,15 @@ class User(Base):
     password    = Column(String(255), nullable=True)
     name        = Column(String(50))
     role        = Column(Enum("admin", "accountant", "employee"), default="employee")
-    provider    = Column(String(20), nullable=True)    # "kakao" | "naver" | "google"
-    provider_id = Column(String(100), nullable=True)   # 각 플랫폼의 고유 사용자 ID
-    created_at  = Column(DateTime, default=datetime.utcnow)
+    provider        = Column(String(20), nullable=True)
+    provider_id     = Column(String(100), nullable=True)
+    phone           = Column(String(20), nullable=True)
+    department_name = Column(String(50), nullable=True)
+    position_name   = Column(String(50), nullable=True)
+    employee_number = Column(String(30), nullable=True)
+    hire_date       = Column(String(10), nullable=True)   # YYYY-MM-DD
+    is_active       = Column(Integer, default=1)           # 0=승인 대기, 1=활성
+    created_at      = Column(DateTime, default=datetime.utcnow)
 
     journals   = relationship("Journal", back_populates="created_by_user")
     receipts   = relationship("Receipt", back_populates="uploaded_by_user")

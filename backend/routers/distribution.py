@@ -5,11 +5,23 @@ from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
 from core.database import get_db
-from core.deps import get_current_business
+from core.deps import get_current_business, get_current_user
+from models.business import Business
+from models.user import User
 from models.distribution import Vehicle, SalesOrder, SalesOrderItem, Delivery, DeliveryReturn
 from models.production import Item, InventoryLog
 
 router = APIRouter(prefix="/api/distribution", tags=["distribution"])
+
+
+def require_writer(
+    current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
+) -> Business:
+    """차량/배송/반품 등록·수정은 admin·accountant만 가능 (employee는 조회만)."""
+    if current_user.role not in ("admin", "accountant"):
+        raise HTTPException(status_code=403, detail="이 작업을 수행할 권한이 없습니다.")
+    return business
 
 
 # ── Pydantic 스키마 ──────────────────────────────────────────────────────────
@@ -120,13 +132,13 @@ def list_vehicles(db: Session = Depends(get_db), business=Depends(get_current_bu
     return [{c.name: getattr(v, c.name) for c in v.__table__.columns} for v in rows]
 
 @router.post("/vehicles", status_code=201)
-def create_vehicle(body: VehicleCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def create_vehicle(body: VehicleCreate, db: Session = Depends(get_db), business=Depends(require_writer)):
     v = Vehicle(business_id=business.id, **body.model_dump())
     db.add(v); db.commit(); db.refresh(v)
     return {c.name: getattr(v, c.name) for c in v.__table__.columns}
 
 @router.put("/vehicles/{vid}")
-def update_vehicle(vid: int, body: VehicleUpdate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def update_vehicle(vid: int, body: VehicleUpdate, db: Session = Depends(get_db), business=Depends(require_writer)):
     v = db.query(Vehicle).filter(Vehicle.id == vid, Vehicle.business_id == business.id).first()
     if not v: raise HTTPException(404, "차량을 찾을 수 없습니다.")
     for k, val in body.model_dump(exclude_none=True).items(): setattr(v, k, val)
@@ -134,7 +146,7 @@ def update_vehicle(vid: int, body: VehicleUpdate, db: Session = Depends(get_db),
     return {c.name: getattr(v, c.name) for c in v.__table__.columns}
 
 @router.delete("/vehicles/{vid}")
-def delete_vehicle(vid: int, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def delete_vehicle(vid: int, db: Session = Depends(get_db), business=Depends(require_writer)):
     v = db.query(Vehicle).filter(Vehicle.id == vid, Vehicle.business_id == business.id).first()
     if not v: raise HTTPException(404, "차량을 찾을 수 없습니다.")
     db.delete(v); db.commit()
@@ -173,7 +185,7 @@ def get_sales_order(order_id: int, db: Session = Depends(get_db), business=Depen
     return d
 
 @router.post("/orders", status_code=201)
-def create_sales_order(body: SalesOrderCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def create_sales_order(body: SalesOrderCreate, db: Session = Depends(get_db), business=Depends(require_writer)):
     total = sum(float(i.quantity) * float(i.unit_price or 0) for i in body.items)
     order = SalesOrder(
         business_id=business.id,
@@ -201,7 +213,7 @@ def create_sales_order(body: SalesOrderCreate, db: Session = Depends(get_db), bu
     return {c.name: getattr(order, c.name) for c in order.__table__.columns}
 
 @router.put("/orders/{order_id}")
-def update_sales_order(order_id: int, body: SalesOrderUpdate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def update_sales_order(order_id: int, body: SalesOrderUpdate, db: Session = Depends(get_db), business=Depends(require_writer)):
     o = db.query(SalesOrder).filter(SalesOrder.id == order_id, SalesOrder.business_id == business.id).first()
     if not o: raise HTTPException(404, "수주를 찾을 수 없습니다.")
     for k, v in body.model_dump(exclude_none=True).items(): setattr(o, k, v)
@@ -209,7 +221,7 @@ def update_sales_order(order_id: int, body: SalesOrderUpdate, db: Session = Depe
     return {c.name: getattr(o, c.name) for c in o.__table__.columns}
 
 @router.delete("/orders/{order_id}")
-def delete_sales_order(order_id: int, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def delete_sales_order(order_id: int, db: Session = Depends(get_db), business=Depends(require_writer)):
     o = db.query(SalesOrder).filter(SalesOrder.id == order_id, SalesOrder.business_id == business.id).first()
     if not o: raise HTTPException(404, "수주를 찾을 수 없습니다.")
     db.delete(o); db.commit()
@@ -239,24 +251,26 @@ def list_deliveries(
     return result
 
 @router.post("/deliveries", status_code=201)
-def create_delivery(body: DeliveryCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def create_delivery(body: DeliveryCreate, db: Session = Depends(get_db), business=Depends(require_writer)):
     d = Delivery(business_id=business.id, **body.model_dump())
     db.add(d); db.commit(); db.refresh(d)
     return {c.name: getattr(d, c.name) for c in d.__table__.columns}
 
 @router.put("/deliveries/{did}")
-def update_delivery(did: int, body: DeliveryUpdate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def update_delivery(did: int, body: DeliveryUpdate, db: Session = Depends(get_db), business=Depends(require_writer)):
     d = db.query(Delivery).filter(Delivery.id == did, Delivery.business_id == business.id).first()
     if not d: raise HTTPException(404, "배송 지시를 찾을 수 없습니다.")
     for k, v in body.model_dump(exclude_none=True).items(): setattr(d, k, v)
-    # 완료 상태이면 수주도 완료로
+    # 연결된 모든 배송이 완료되어야 수주도 완료로 전환 (분할 배송 대응)
     if body.status == "완료" and d.sales_order:
-        d.sales_order.status = "완료"
+        remaining = [x for x in d.sales_order.deliveries if x.id != d.id and x.status not in ("완료", "취소")]
+        if not remaining:
+            d.sales_order.status = "완료"
     db.commit(); db.refresh(d)
     return {c.name: getattr(d, c.name) for c in d.__table__.columns}
 
 @router.delete("/deliveries/{did}")
-def delete_delivery(did: int, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def delete_delivery(did: int, db: Session = Depends(get_db), business=Depends(require_writer)):
     d = db.query(Delivery).filter(Delivery.id == did, Delivery.business_id == business.id).first()
     if not d: raise HTTPException(404, "배송 지시를 찾을 수 없습니다.")
     db.delete(d); db.commit()
@@ -277,7 +291,7 @@ def list_returns(db: Session = Depends(get_db), business=Depends(get_current_bus
     return result
 
 @router.post("/returns", status_code=201)
-def create_return(body: ReturnCreate, db: Session = Depends(get_db), business=Depends(get_current_business)):
+def create_return(body: ReturnCreate, db: Session = Depends(get_db), business=Depends(require_writer)):
     ret = DeliveryReturn(
         business_id=business.id,
         delivery_id=body.delivery_id,
@@ -355,7 +369,10 @@ def delivery_fee_summary(
         Delivery.business_id == bid,
         Delivery.status == "완료",
         Delivery.scheduled_date.isnot(None),
-    ).group_by("year", "month").order_by("year", "month")
+    )
+    if year:  monthly_q = monthly_q.filter(extract("year",  Delivery.scheduled_date) == year)
+    if month: monthly_q = monthly_q.filter(extract("month", Delivery.scheduled_date) == month)
+    monthly_q = monthly_q.group_by("year", "month").order_by("year", "month")
 
     return {
         "total_fee":    round(total_fee, 2),

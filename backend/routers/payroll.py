@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from core.database import get_db
-from core.deps import get_current_business
+from core.deps import get_current_business, get_current_user
 from models.business import Business
+from models.user import User
 from models.employee import Employee
 from models.payroll import Payroll, Severance
 from pydantic import BaseModel
@@ -12,6 +13,16 @@ from datetime import date
 from decimal import Decimal
 
 router = APIRouter(prefix="/api/hr/payroll", tags=["payroll"])
+
+
+def require_admin(
+    current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
+) -> Business:
+    """급여·퇴직금 정보는 사업장 admin만 접근 가능."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="급여 정보에 접근할 권한이 없습니다.")
+    return business
 
 
 # ── Schemas ────────────────────────────────────────────
@@ -65,7 +76,7 @@ class SeveranceCreate(BaseModel):
 def list_payrolls(
     year: int = None, month: int = None,
     employee_id: int = None,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     from datetime import date as dt
@@ -117,7 +128,7 @@ def list_payrolls(
 @router.post("/", status_code=201)
 def create_payroll(
     data: PayrollCreate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(Employee.id == data.employee_id, Employee.business_id == business.id).first()
@@ -142,7 +153,7 @@ def create_payroll(
 def update_payroll(
     payroll_id: int,
     data: PayrollUpdate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     payroll = db.query(Payroll).filter(Payroll.id == payroll_id, Payroll.business_id == business.id).first()
@@ -157,7 +168,7 @@ def update_payroll(
 @router.delete("/{payroll_id}", status_code=204)
 def delete_payroll(
     payroll_id: int,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     payroll = db.query(Payroll).filter(Payroll.id == payroll_id, Payroll.business_id == business.id).first()
@@ -171,7 +182,7 @@ def delete_payroll(
 @router.post("/calculate")
 def calculate_payroll(
     employee_id: int,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(Employee.id == employee_id, Employee.business_id == business.id).first()
@@ -210,7 +221,8 @@ def calculate_payroll(
 def calculate_severance(
     employee_id: int,
     resign_date: date,
-    business: Business = Depends(get_current_business),
+    avg_wage_3m: Optional[float] = None,
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(Employee.id == employee_id, Employee.business_id == business.id).first()
@@ -222,7 +234,7 @@ def calculate_severance(
     years_worked = days_worked / 365
     if years_worked < 1:
         raise HTTPException(status_code=400, detail="근속 1년 미만은 퇴직금 대상이 아닙니다.")
-    avg_wage = float(emp.base_salary or 0)
+    avg_wage = float(avg_wage_3m) if avg_wage_3m is not None else float(emp.base_salary or 0)
     # 퇴직금 = 평균임금 × 30일 × (근속연수)
     severance = round(avg_wage / 30 * 30 * years_worked, 0)
     return {
@@ -239,7 +251,7 @@ def calculate_severance(
 
 @router.get("/severance/")
 def list_severances(
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     severances = db.query(Severance).filter(Severance.business_id == business.id).all()
@@ -257,7 +269,7 @@ def list_severances(
 @router.post("/severance/", status_code=201)
 def create_severance(
     data: SeveranceCreate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(Employee.id == data.employee_id, Employee.business_id == business.id).first()

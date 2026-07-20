@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Lock, CheckCircle } from "lucide-react";
 import Modal from "@/components/Modal";
+import api from "@/lib/api";
 
 function formatCardNumber(v: string) {
   const digits = v.replace(/\D/g, "").slice(0, 16);
@@ -29,10 +30,10 @@ export default function PaymentPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (cardNumber.replace(/\s/g, "").length < 16) e.cardNumber = "카드 번호 16자리를 입력해 주세요.";
-    if (expiry.length < 5) e.expiry = "유효기간을 MM/YY 형식으로 입력해 주세요.";
-    if (cvc.length < 3) e.cvc = "CVC 3자리를 입력해 주세요.";
-    if (!holder.trim()) e.holder = "카드 소유자 이름을 입력해 주세요.";
+    if (cardNumber.replace(/\s/g, "").length < 16) e.cardNumber = "카드 번호 16자리를 입력해 주세요";
+    if (expiry.length < 5) e.expiry = "유효기간을 MM/YY 형식으로 입력해 주세요";
+    if (cvc.length < 3) e.cvc = "CVC 3자리를 입력해 주세요";
+    if (!holder.trim()) e.holder = "카드 소유자 이름을 입력해 주세요";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -40,7 +41,13 @@ export default function PaymentPage() {
   const processPayment = () => {
     setShowConfirm(false);
     setStatus("processing");
-    setTimeout(() => {
+    setTimeout(async () => {
+      const bizId = localStorage.getItem("activeBizId");
+      try {
+        if (bizId) await api.patch(`/api/business/${bizId}/subscribe`);
+      } catch {
+        // 서버 반영 실패 시에도 로컬 플래그는 유지 (재시도는 다음 로그인 시 서버 값으로 동기화됨)
+      }
       const proKey = (() => { try { const id = JSON.parse(localStorage.getItem("user") || "{}").id; return id ? `pro_plan_${id}` : "pro_plan"; } catch { return "pro_plan"; } })();
       localStorage.setItem(proKey, "true");
       window.dispatchEvent(new CustomEvent("pro-plan-updated"));

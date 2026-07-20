@@ -66,6 +66,8 @@ export default function CardPage() {
     try {
       const res = await api.get("/api/dashboard/recent-transactions?limit=500");
       setTxs(res.data);
+    } catch (e) {
+      console.error("거래 내역을 불러오지 못했습니다.", e);
     } finally { setLoading(false); }
   }, []);
 
@@ -156,7 +158,7 @@ export default function CardPage() {
   };
 
   const card: React.CSSProperties = { backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)" };
-  const tabBtn = (a: boolean): React.CSSProperties => ({ padding: "5px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, backgroundColor: a ? "var(--accent)" : "var(--bg-surface-2)", color: a ? "var(--accent-text)" : "var(--text-muted)" });
+  const tabBtn = (a: boolean): React.CSSProperties => ({ padding: "5px 14px", borderRadius: "7px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600, backgroundColor: a ? "var(--bg-surface)" : "transparent", color: a ? "var(--text-primary)" : "var(--text-muted)", boxShadow: a ? "var(--shadow)" : "none", transition: "all 0.15s" });
   const inputStyle: React.CSSProperties = { padding: "5px 8px", border: "1px solid var(--border)", borderRadius: "6px", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "100%", boxSizing: "border-box" };
   const iconBtn: React.CSSProperties = { width: "26px", height: "26px", borderRadius: "6px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 };
 
@@ -236,7 +238,7 @@ export default function CardPage() {
         <div style={{ ...card, padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>주 거래 은행</p>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>등록된 은행 정보가 없습니다.</p>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>등록된 은행 정보가 없습니다</p>
           </div>
           <button
             onClick={() => { setBankForm(emptyBankForm); setIsNewBank(true); setEditingBank(true); }}
@@ -250,7 +252,7 @@ export default function CardPage() {
       <div style={{ ...card, overflow: "hidden" }}>
         <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", flex: 1 }}>{month.replace("-", "년 ")}월 거래 내역</span>
-          <div style={{ display: "flex", gap: "4px" }}>
+          <div style={{ display: "flex", gap: "2px", backgroundColor: "var(--bg-surface-2)", borderRadius: "9px", padding: "3px" }}>
             {(["all", "income", "expense"] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
                 {t === "all" ? "전체" : t === "income" ? "입금" : "출금"}
@@ -270,7 +272,7 @@ export default function CardPage() {
             {loading ? (
               <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>불러오는 중...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>{month} 거래 내역이 없습니다.</td></tr>
+              <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>{month} 거래 내역이 없습니다</td></tr>
             ) : filtered.map((tx, i) => {
               const isEditing = editingTxId === tx.id;
               const d = new Date(tx.date + "T00:00:00");

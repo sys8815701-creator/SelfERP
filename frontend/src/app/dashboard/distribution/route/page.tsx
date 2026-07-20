@@ -27,10 +27,10 @@ export default function RouteGroupingPage() {
   const groups: any[] = data?.groups ?? [];
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>경로 최적화</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>같은 날 배송 지역별로 묶어서 효율적인 배송 경로를 제안합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>같은 날 배송 지역별로 묶어서 효율적인 배송 경로를 제안합니다</p>
       </div>
 
       {/* 날짜 선택 */}
@@ -48,7 +48,7 @@ export default function RouteGroupingPage() {
         <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "48px" }}>불러오는 중...</p>
       ) : groups.length === 0 ? (
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "48px", textAlign: "center" }}>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>해당 날짜에 진행 중인 배송이 없습니다.</p>
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>해당 날짜에 진행 중인 배송이 없습니다</p>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
@@ -57,7 +57,7 @@ export default function RouteGroupingPage() {
               <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "10px", backgroundColor: `${REGION_COLORS[idx % REGION_COLORS.length]}15` }}>
                 <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: REGION_COLORS[idx % REGION_COLORS.length], flexShrink: 0 }} />
                 <p style={{ fontSize: "14px", fontWeight: 800, color: "var(--text-primary)" }}>{group.region}</p>
-                <span style={{ marginLeft: "auto", fontSize: "12px", fontWeight: 700, padding: "3px 10px", borderRadius: "20px", backgroundColor: REGION_COLORS[idx % REGION_COLORS.length], color: "white" }}>
+                <span style={{ marginLeft: "auto", fontSize: "12px", fontWeight: 700, padding: "3px 10px", borderRadius: "20px", backgroundColor: `${REGION_COLORS[idx % REGION_COLORS.length]}20`, border: `1px solid ${REGION_COLORS[idx % REGION_COLORS.length]}60`, color: REGION_COLORS[idx % REGION_COLORS.length] }}>
                   {group.count}건
                 </span>
               </div>
@@ -73,7 +73,8 @@ export default function RouteGroupingPage() {
                       </p>
                     </div>
                     <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "6px",
-                      backgroundColor: d.status === "배송중" ? "#DBEAFE" : "#F3F4F6",
+                      backgroundColor: d.status === "배송중" ? "rgba(29,78,216,0.12)" : "rgba(107,114,128,0.10)",
+                      border: d.status === "배송중" ? "1px solid rgba(29,78,216,0.40)" : "1px solid rgba(107,114,128,0.30)",
                       color: d.status === "배송중" ? "#1D4ED8" : "#6B7280" }}>
                       {d.status}
                     </span>

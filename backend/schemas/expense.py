@@ -19,6 +19,7 @@ class ExpenseResponse(BaseModel):
     status:       str
     requested_at: Optional[datetime]
     approved_at:  Optional[datetime]
+    requester_name: Optional[str] = None
 
     class Config:
         from_attributes = True

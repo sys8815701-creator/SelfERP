@@ -17,7 +17,7 @@ const QUICK_QUESTIONS = [
 
 export default function AiPage() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "안녕하세요! AI 회계 비서입니다.\n재무 현황, 세금 신고, 경비 분석 등 무엇이든 물어보세요. 실시간 데이터를 바탕으로 정확한 답변을 드립니다." }
+    { role: "assistant", content: "안녕하세요! AI 회계 비서입니다.\n재무 현황, 세금 신고, 경비 분석 등 무엇이든 물어보세요. 실시간 데이터를 바탕으로 정확한 답변을 드립니다" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,7 +35,7 @@ export default function AiPage() {
       const res = await api.post("/api/ai/chat", { message: msg });
       setMessages(prev => [...prev, { role: "assistant", content: res.data.reply }]);
     } catch (e: any) {
-      setMessages(prev => [...prev, { role: "assistant", content: "죄송합니다. 잠시 후 다시 시도해 주세요." }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "죄송합니다. 잠시 후 다시 시도해 주세요" }]);
     } finally { setLoading(false); }
   };
 

@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 
-const LOG_TYPE_COLOR: Record<string, { bg: string; color: string }> = {
-  입고:     { bg: "#DCFCE7", color: "#15803D" },
-  출고:     { bg: "#FEF2F2", color: "#DC2626" },
-  생산소비: { bg: "#FEF9C3", color: "#A16207" },
-  생산완료: { bg: "#DBEAFE", color: "#1D4ED8" },
-  조정:     { bg: "#F3F4F6", color: "#6B7280" },
-  반품:     { bg: "#FDF4FF", color: "#7E22CE" },
+const LOG_TYPE_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  입고:     { backgroundColor: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
+  출고:     { backgroundColor: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
+  생산소비: { backgroundColor: "rgba(161,98,7,0.12)",    color: "#A16207", border: "1px solid rgba(161,98,7,0.40)" },
+  생산완료: { backgroundColor: "rgba(29,78,216,0.12)",   color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.40)" },
+  조정:     { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" },
+  반품:     { backgroundColor: "rgba(126,34,206,0.12)",  color: "#7E22CE", border: "1px solid rgba(126,34,206,0.40)" },
 };
 
 function fmt(v: any) {
@@ -69,14 +69,14 @@ export default function InventoryLogPage() {
   };
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>입출고 이력</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>자재 입출고 이력을 조회하고 등록합니다. · {logs.length}건</p>
         </div>
         <button onClick={() => setShowModal(true)}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
           + 입출고 등록
         </button>
       </div>
@@ -109,9 +109,9 @@ export default function InventoryLogPage() {
             {loading ? (
               <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>입출고 이력이 없습니다.</td></tr>
+              <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>입출고 이력이 없습니다</td></tr>
             ) : logs.map((log, i) => {
-              const tc = LOG_TYPE_COLOR[log.log_type] || { bg: "#F3F4F6", color: "#374151" };
+              const tc = LOG_TYPE_COLOR[log.log_type] || { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" };
               const isNeg = parseFloat(log.quantity) < 0;
               return (
                 <tr key={log.id}
@@ -189,7 +189,7 @@ export default function InventoryLogPage() {
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <button onClick={handleSave} disabled={saving || !form.item_id || !form.quantity}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "등록"}
               </button>
               <button onClick={() => setShowModal(false)}

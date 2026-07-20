@@ -7,6 +7,7 @@ class Receipt(Base):
     __tablename__ = "receipts"
 
     id           = Column(Integer, primary_key=True, autoincrement=True)
+    business_id  = Column(Integer, ForeignKey("businesses.id"), nullable=True)
     file_path    = Column(String(255))
     vendor       = Column(String(100))        # 거래처
     total_amount = Column(Numeric(15, 2))

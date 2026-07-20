@@ -2,44 +2,56 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
+import Modal, { ModalConfig } from "@/components/Modal";
 
-const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-  접수:    { bg: "#F3F4F6", color: "#6B7280" },
-  생산중:  { bg: "#DBEAFE", color: "#1D4ED8" },
-  출하대기: { bg: "#FEF9C3", color: "#A16207" },
-  배송중:  { bg: "#E0E7FF", color: "#4338CA" },
-  완료:    { bg: "#DCFCE7", color: "#15803D" },
-  취소:    { bg: "#FEF2F2", color: "#DC2626" },
+const STATUS_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
+  접수:    { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" },
+  생산중:  { backgroundColor: "rgba(29,78,216,0.12)",   color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.40)" },
+  출하대기: { backgroundColor: "rgba(161,98,7,0.12)",   color: "#A16207", border: "1px solid rgba(161,98,7,0.40)" },
+  배송중:  { backgroundColor: "rgba(67,56,202,0.12)",   color: "#4338CA", border: "1px solid rgba(67,56,202,0.40)" },
+  완료:    { backgroundColor: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
+  취소:    { backgroundColor: "rgba(220,38,38,0.12)",   color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)" },
 };
 
 function fmt(v: any) { return parseFloat(String(v ?? 0)).toLocaleString("ko-KR"); }
 
 export default function SalesOrdersPage() {
+  const role = useRole();
   const [orders, setOrders]   = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("status") ?? "";
+  });
   const [selected, setSelected] = useState<any | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [form, setForm]           = useState<any>({ vendor_id: "", order_no: "", order_date: "", due_date: "", note: "" });
   const [lines, setLines]         = useState<any[]>([{ item_name: "", quantity: "", unit_price: "", note: "" }]);
   const [saving, setSaving]       = useState(false);
+  const [modal, setModal]         = useState<ModalConfig | null>(null);
 
   const bizId = () => localStorage.getItem("activeBizId") || "";
   const h = () => ({ "X-Business-Id": bizId() });
 
+  const PENDING_STATUSES = ["접수", "생산중", "출하대기"];
+
   const load = useCallback(async () => {
     setLoading(true);
-    const params: any = {};
-    if (statusFilter) params.status = statusFilter;
     const [o, v] = await Promise.all([
-      api.get("/api/distribution/orders", { params, headers: h() }).catch(() => ({ data: [] })),
-      api.get("/api/accounting/vendors",  { headers: h() }).catch(() => ({ data: [] })),
+      (statusFilter === "처리대기"
+        ? Promise.all(PENDING_STATUSES.map(s => api.get("/api/distribution/orders", { params: { status: s }, headers: h() }).catch(() => ({ data: [] }))))
+            .then(results => ({ data: (results as any[]).flatMap(r => r.data) }))
+        : api.get("/api/distribution/orders", { params: statusFilter ? { status: statusFilter } : {}, headers: h() }).catch(() => ({ data: [] }))
+      ),
+      api.get("/api/accounting/vendors/", { headers: h() }).catch(() => ({ data: [] })),
     ]);
     setOrders(o.data);
     setVendors(v.data);
     setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   useEffect(() => { load(); }, [load]);
@@ -63,18 +75,30 @@ export default function SalesOrdersPage() {
         })),
       }, { headers: h() });
       setShowModal(false); setSelected(null); await load();
-    } catch { /* ignore */ } finally { setSaving(false); }
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+    } finally { setSaving(false); }
   };
 
   const handleStatusChange = async (id: number, status: string) => {
-    await api.put(`/api/distribution/orders/${id}`, { status }, { headers: h() });
-    await load();
+    try {
+      await api.put(`/api/distribution/orders/${id}`, { status }, { headers: h() });
+      await load();
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "상태 변경에 실패했습니다.", variant: "error" });
+    }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("수주를 삭제하시겠습니까?")) return;
-    await api.delete(`/api/distribution/orders/${id}`, { headers: h() });
-    setSelected(null); await load();
+  const handleDelete = (id: number) => {
+    setModal({ title: "삭제 확인", message: "수주를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/distribution/orders/${id}`, { headers: h() });
+          setSelected(null); await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "삭제에 실패했습니다.", variant: "error" });
+        }
+      } });
   };
 
   const loadDetail = async (id: number) => {
@@ -87,16 +111,18 @@ export default function SalesOrdersPage() {
   const setLine    = (i: number, k: string, v: string) => setLines(p => p.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>수주 관리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>고객사 주문을 접수하고 관리합니다. · {orders.length}건</p>
         </div>
-        <button onClick={() => { setForm({ vendor_id: "", order_no: "", order_date: new Date().toISOString().split("T")[0], due_date: "", note: "" }); setLines([{ item_name: "", quantity: "", unit_price: "", note: "" }]); setShowModal(true); }}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 수주 등록
-        </button>
+        {canWrite(role) && (
+          <button onClick={() => { setForm({ vendor_id: "", order_no: "", order_date: new Date().toISOString().split("T")[0], due_date: "", note: "" }); setLines([{ item_name: "", quantity: "", unit_price: "", note: "" }]); setShowModal(true); }}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 수주 등록
+          </button>
+        )}
       </div>
 
       {/* 필터 */}
@@ -104,6 +130,7 @@ export default function SalesOrdersPage() {
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           style={{ padding: "8px 12px", border: "1px solid var(--border)", borderRadius: "8px", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)", fontSize: "13px" }}>
           <option value="">전체 상태</option>
+          <option value="처리대기">처리 대기 (접수·생산중·출하대기)</option>
           {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
@@ -120,16 +147,17 @@ export default function SalesOrdersPage() {
             </thead>
             <tbody>
               {loading ? <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
-              : orders.length === 0 ? <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 수주가 없습니다.</td></tr>
+              : orders.length === 0 ? <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>등록된 수주가 없습니다</td></tr>
               : orders.map((o, i) => {
-                const sc = STATUS_COLOR[o.status] || { bg: "#F3F4F6", color: "#374151" };
-                const overdue = o.due_date && o.status !== "완료" && o.status !== "취소" && new Date(o.due_date) < new Date();
+                const sc = STATUS_COLOR[o.status] || { backgroundColor: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" };
+                const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+                const overdue = o.due_date && o.status !== "완료" && o.status !== "취소" && o.due_date < todayStr;
                 return (
                   <tr key={o.id} onClick={() => loadDetail(o.id)}
                     style={{ borderBottom: i < orders.length - 1 ? "1px solid var(--border-subtle)" : "none", cursor: "pointer",
-                      backgroundColor: selected?.id === o.id ? "var(--bg-surface-2)" : overdue ? "rgba(254,242,242,0.3)" : "transparent" }}
+                      backgroundColor: selected?.id === o.id ? "var(--bg-surface-2)" : overdue ? "rgba(220,38,38,0.06)" : "transparent" }}
                     onMouseEnter={e => { e.currentTarget.style.backgroundColor = "var(--bg-surface-2)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = selected?.id === o.id ? "var(--bg-surface-2)" : overdue ? "rgba(254,242,242,0.3)" : "transparent"; }}>
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = selected?.id === o.id ? "var(--bg-surface-2)" : overdue ? "rgba(220,38,38,0.06)" : "transparent"; }}>
                     <td style={{ padding: "12px 14px", fontSize: "12px", color: "var(--text-muted)" }}>{o.order_no || `#${o.id}`}</td>
                     <td style={{ padding: "12px 14px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{o.vendor_name || "—"}</td>
                     <td style={{ padding: "12px 14px", fontSize: "12px", color: overdue ? "#DC2626" : "var(--text-muted)", fontWeight: overdue ? 700 : 400 }}>
@@ -138,11 +166,17 @@ export default function SalesOrdersPage() {
                     <td style={{ padding: "12px 14px", fontSize: "13px", color: "var(--text-secondary)" }}>{o.item_count}개</td>
                     <td style={{ padding: "12px 14px", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>₩{fmt(o.total_amount)}</td>
                     <td style={{ padding: "12px 14px" }}>
-                      <select value={o.status} onChange={e => { e.stopPropagation(); handleStatusChange(o.id, e.target.value); }}
-                        onClick={e => e.stopPropagation()}
-                        style={{ ...sc, padding: "4px 8px", borderRadius: "6px", border: "none", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
-                        {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                      {canWrite(role) ? (
+                        <select value={o.status} onChange={e => { e.stopPropagation(); handleStatusChange(o.id, e.target.value); }}
+                          onClick={e => e.stopPropagation()}
+                          style={{ ...sc, padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
+                          {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      ) : (
+                        <span style={{ ...sc, padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700 }}>
+                          {o.status}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -186,13 +220,17 @@ export default function SalesOrdersPage() {
                 </div>
               ))}
             </div>
-            <button onClick={() => handleDelete(selected.id)}
-              style={{ width: "100%", padding: "9px", backgroundColor: "var(--bg-surface-2)", color: "#DC2626", border: "1px solid #FCA5A5", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
-              수주 삭제
-            </button>
+            {canDelete(role) && (
+              <button onClick={() => handleDelete(selected.id)}
+                style={{ width: "100%", padding: "9px", backgroundColor: "rgba(220,38,38,0.12)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                수주 삭제
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
 
       {/* 등록 모달 */}
       {showModal && (
@@ -233,7 +271,7 @@ export default function SalesOrdersPage() {
             <div style={{ marginBottom: "20px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>수주 품목</p>
-                <button onClick={addLine} style={{ fontSize: "12px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "6px", padding: "4px 10px", cursor: "pointer" }}>+ 추가</button>
+                <button onClick={addLine} style={{ fontSize: "12px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "6px", padding: "4px 10px", cursor: "pointer" }}>+ 추가</button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {lines.map((line, idx) => (
@@ -257,7 +295,7 @@ export default function SalesOrdersPage() {
 
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={handleSave} disabled={saving || !lines.some(l => l.item_name && l.quantity)}
-                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: "11px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "14px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "저장 중..." : "수주 등록"}
               </button>
               <button onClick={() => setShowModal(false)} style={{ padding: "11px 20px", backgroundColor: "var(--bg-surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>취소</button>

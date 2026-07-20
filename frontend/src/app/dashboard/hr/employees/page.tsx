@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
+import Modal, { ModalConfig } from "@/components/Modal";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
 interface Department { id: number; name: string; }
 interface Position   { id: number; name: string; level: number; }
@@ -30,8 +32,10 @@ interface Employee {
   note: string | null;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  재직: "#22C55E", 휴직: "#F59E0B", 퇴직: "#6B7280",
+const STATUS_COLORS: Record<string, { color: string; bg: string; border: string }> = {
+  재직: { color: "#22C55E", bg: "rgba(34,197,94,0.12)",   border: "1px solid rgba(34,197,94,0.40)" },
+  휴직: { color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  border: "1px solid rgba(245,158,11,0.40)" },
+  퇴직: { color: "#6B7280", bg: "rgba(107,114,128,0.10)", border: "1px solid rgba(107,114,128,0.30)" },
 };
 
 const EMPTY_FORM = {
@@ -44,6 +48,7 @@ const EMPTY_FORM = {
 };
 
 export default function EmployeesPage() {
+  const role = useRole();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -59,6 +64,7 @@ export default function EmployeesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showDetail, setShowDetail] = useState<Employee | null>(null);
+  const [modal, setModal] = useState<ModalConfig | null>(null);
 
   const bizHeaders = () => {
     const id = localStorage.getItem("activeBizId");
@@ -113,8 +119,8 @@ export default function EmployeesPage() {
   };
 
   const saveEmployee = async () => {
-    if (!form.name.trim()) { setError("이름을 입력하세요."); return; }
-    if (!form.hire_date)   { setError("입사일을 입력하세요."); return; }
+    if (!form.name.trim()) { setError("이름을 입력하세요"); return; }
+    if (!form.hire_date)   { setError("입사일을 입력하세요"); return; }
     setSaving(true); setError("");
     try {
       const payload = {
@@ -130,15 +136,17 @@ export default function EmployeesPage() {
       setShowModal(false);
       fetchAll();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || "저장에 실패했습니다.");
+      setError(e?.response?.data?.detail || "저장에 실패했습니다");
     }
     setSaving(false);
   };
 
-  const deleteEmployee = async (id: number) => {
-    if (!confirm("직원 정보를 삭제하시겠습니까?")) return;
-    try { await api.delete(`/api/hr/employees/${id}`, { headers: bizHeaders() }); fetchAll(); }
-    catch { alert("삭제에 실패했습니다."); }
+  const deleteEmployee = (id: number) => {
+    setModal({ title: "삭제 확인", message: "직원 정보를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
+      onConfirm: async () => {
+        try { await api.delete(`/api/hr/employees/${id}`, { headers: bizHeaders() }); fetchAll(); }
+        catch { setModal({ message: "삭제에 실패했습니다", variant: "error" }); }
+      } });
   };
 
   const inputStyle: React.CSSProperties = {
@@ -152,17 +160,19 @@ export default function EmployeesPage() {
   const row2: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" };
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       {/* 헤더 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>직원 관리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>직원 정보 등록 및 관리</p>
         </div>
-        <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 직원 추가
-        </button>
+        {canWrite(role) && (
+          <button onClick={openCreate}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 직원 추가
+          </button>
+        )}
       </div>
 
       {/* 필터 */}
@@ -188,20 +198,25 @@ export default function EmployeesPage() {
       {loading ? (
         <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "80px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
           <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◉</p>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 직원이 없습니다.</p>
-          <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", color: "var(--accent)", background: "none", border: "1px solid var(--accent)", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
-            첫 번째 직원 추가
-          </button>
+          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 직원이 없습니다</p>
+          {canWrite(role) && (
+            <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
+              첫 번째 직원 추가
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {["직원", "부서", "직급", "고용 형태", "입사일", "기본급", "상태", ""].map(h => (
-                  <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "var(--text-subtle)", letterSpacing: "0.5px" }}>{h}</th>
+                {(canWrite(role)
+                  ? ["직원", "부서", "직급", "고용 형태", "입사일", "기본급", "상태", ""]
+                  : ["직원", "부서", "직급", "고용 형태", "입사일", "상태"]
+                ).map(h => (
+                  <th key={h || "actions"} style={{ padding: "12px 14px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "var(--text-subtle)", letterSpacing: "0.5px" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -226,26 +241,32 @@ export default function EmployeesPage() {
                   <td style={{ padding: "13px 14px", fontSize: "12px", color: "var(--text-secondary)" }}>{e.position_name || "—"}</td>
                   <td style={{ padding: "13px 14px", fontSize: "12px", color: "var(--text-secondary)" }}>{e.employment_type}</td>
                   <td style={{ padding: "13px 14px", fontSize: "12px", color: "var(--text-secondary)" }}>{e.hire_date}</td>
-                  <td style={{ padding: "13px 14px", fontSize: "12px", color: "var(--text-primary)", fontWeight: 600 }}>
-                    {e.base_salary > 0 ? `${e.base_salary.toLocaleString()}원` : "—"}
-                  </td>
+                  {canWrite(role) && (
+                    <td style={{ padding: "13px 14px", fontSize: "12px", color: "var(--text-primary)", fontWeight: 600 }}>
+                      {e.base_salary > 0 ? `${e.base_salary.toLocaleString()}원` : "—"}
+                    </td>
+                  )}
                   <td style={{ padding: "13px 14px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: STATUS_COLORS[e.status] || "var(--text-muted)", backgroundColor: `${STATUS_COLORS[e.status]}18`, padding: "3px 10px", borderRadius: "99px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: STATUS_COLORS[e.status]?.color || "var(--text-muted)", backgroundColor: STATUS_COLORS[e.status]?.bg, border: STATUS_COLORS[e.status]?.border, padding: "3px 10px", borderRadius: "99px" }}>
                       {e.status}
                     </span>
                   </td>
-                  <td style={{ padding: "13px 14px" }} onClick={ev => ev.stopPropagation()}>
-                    <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                      <button onClick={() => openEdit(e)}
-                        style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
-                        수정
-                      </button>
-                      <button onClick={() => deleteEmployee(e.id)}
-                        style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.3)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>
-                        삭제
-                      </button>
-                    </div>
-                  </td>
+                  {canWrite(role) && (
+                    <td style={{ padding: "13px 14px" }} onClick={ev => ev.stopPropagation()}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                        <button onClick={() => openEdit(e)}
+                          style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
+                          수정
+                        </button>
+                        {canDelete(role) && (
+                          <button onClick={() => deleteEmployee(e.id)}
+                            style={{ padding: "5px 10px", borderRadius: "7px", backgroundColor: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.40)", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -254,6 +275,8 @@ export default function EmployeesPage() {
       )}
 
       {/* 상세 드로어 */}
+      {modal && <Modal {...modal} onClose={() => setModal(null)} />}
+
       {showDetail && (
         <div style={{ position: "fixed", inset: 0, zIndex: 900, display: "flex" }}
           onClick={() => setShowDetail(null)}>
@@ -270,7 +293,7 @@ export default function EmployeesPage() {
               </div>
               <p style={{ fontSize: "18px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>{showDetail.name}</p>
               <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>{showDetail.position_name || "직급 미지정"} · {showDetail.department_name || "부서 미지정"}</p>
-              <span style={{ display: "inline-block", marginTop: "8px", fontSize: "11px", fontWeight: 700, color: STATUS_COLORS[showDetail.status], backgroundColor: `${STATUS_COLORS[showDetail.status]}18`, padding: "4px 12px", borderRadius: "99px" }}>
+              <span style={{ display: "inline-block", marginTop: "8px", fontSize: "11px", fontWeight: 700, color: STATUS_COLORS[showDetail.status]?.color, backgroundColor: STATUS_COLORS[showDetail.status]?.bg, border: STATUS_COLORS[showDetail.status]?.border, padding: "4px 12px", borderRadius: "99px" }}>
                 {showDetail.status}
               </span>
             </div>
@@ -299,10 +322,12 @@ export default function EmployeesPage() {
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6 }}>{showDetail.note}</p>
               </div>
             )}
-            <button onClick={() => { setShowDetail(null); openEdit(showDetail); }}
-              style={{ width: "100%", marginTop: "20px", padding: "11px", borderRadius: "10px", border: "none", backgroundColor: "var(--accent)", color: "var(--accent-text)", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
-              수정하기
-            </button>
+            {canWrite(role) && (
+              <button onClick={() => { setShowDetail(null); openEdit(showDetail); }}
+                style={{ width: "100%", marginTop: "20px", padding: "11px", borderRadius: "10px", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", color: "var(--accent)", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+                수정하기
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -402,7 +427,7 @@ export default function EmployeesPage() {
                 취소
               </button>
               <button onClick={saveEmployee} disabled={saving}
-                style={{ flex: 2, padding: "10px", borderRadius: "8px", border: "none", backgroundColor: "var(--accent)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent-text)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+                style={{ flex: 2, padding: "10px", borderRadius: "8px", border: "1.5px solid #C49A30", backgroundColor: "var(--accent-light)", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", color: "var(--accent)", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
                 {saving ? "저장 중..." : (editingEmp ? "수정 완료" : "직원 등록")}
               </button>
             </div>

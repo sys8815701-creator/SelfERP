@@ -7,6 +7,7 @@ class Journal(Base):
     __tablename__ = "journals"
 
     id          = Column(Integer, primary_key=True, autoincrement=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
     date        = Column(Date, nullable=False)
     description = Column(String(255))
     receipt_id  = Column(Integer, ForeignKey("receipts.id"), nullable=True)

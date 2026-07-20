@@ -7,15 +7,8 @@ import { User, Building2, Shield, LogOut, Bell, Search, CheckCheck, Trash2, X } 
 import ThemeToggle from "@/components/ThemeToggle";
 import Modal, { ModalConfig } from "@/components/Modal";
 import api from "@/lib/api";
-import { getNotifs, deleteNotifById, clearNotifs, formatNotifTime, NotifItem } from "@/lib/notif";
-
-const mainMenuBase = [
-  { label: "대시보드",    href: "/dashboard",          icon: "⊙" },
-  { label: "회계 장부",   href: "/dashboard/ledger",   icon: "▣" },
-  { label: "영수증 OCR",  href: "/dashboard/ocr",      icon: "▤", isOcr: true },
-  { label: "카드 · 은행",  href: "/dashboard/card",     icon: "▥" },
-  { label: "경비 정산",   href: "/dashboard/expense",  icon: "⊕" },
-];
+import { getNotifs, addNotif, deleteNotifById, clearNotifs, formatNotifTime, NotifItem } from "@/lib/notif";
+import socket, { joinBusinessRoom } from "@/lib/socket";
 
 const hrMenu = [
   { label: "HR 대시보드",  href: "/dashboard/hr",              icon: "◈" },
@@ -27,13 +20,17 @@ const hrMenu = [
 ];
 
 const accountingMenu = [
-  { label: "회계 대시보드",   href: "/dashboard/accounting",              icon: "◆" },
-  { label: "거래처 관리",     href: "/dashboard/accounting/vendors",      icon: "◇" },
-  { label: "미수금·미지급금", href: "/dashboard/accounting/ar-ap",        icon: "◈" },
-  { label: "재무제표",        href: "/dashboard/accounting/statements",   icon: "◉" },
-  { label: "세금계산서",      href: "/dashboard/accounting/tax-invoice",  icon: "◊" },
-  { label: "견적서·청구서",   href: "/dashboard/accounting/estimates",    icon: "◎" },
-  { label: "예산 관리",       href: "/dashboard/accounting/budget",       icon: "◐" },
+  { label: "회계 대시보드",    href: "/dashboard/accounting",              icon: "◆" },
+  { label: "회계 장부",        href: "/dashboard/ledger",                  icon: "▣" },
+  { label: "영수증 OCR",       href: "/dashboard/ocr",                     icon: "▤", isOcr: true },
+  { label: "카드 · 은행",      href: "/dashboard/card",                    icon: "▥" },
+  { label: "경비 정산",        href: "/dashboard/expense",                 icon: "⊕" },
+  { label: "거래처 관리",      href: "/dashboard/accounting/vendors",      icon: "◇" },
+  { label: "미수금 · 미지급금", href: "/dashboard/accounting/ar-ap",        icon: "◈" },
+  { label: "재무제표",         href: "/dashboard/accounting/statements",   icon: "◉" },
+  { label: "세금계산서",       href: "/dashboard/accounting/tax-invoice",  icon: "◊" },
+  { label: "견적서 · 청구서",  href: "/dashboard/accounting/estimates",    icon: "◎" },
+  { label: "예산 관리",        href: "/dashboard/accounting/budget",       icon: "◐" },
 ];
 
 const productionMenu = [
@@ -60,10 +57,12 @@ const distributionMenu = [
 ];
 
 const integratedMenu = [
-  { label: "통합 대시보드", href: "/dashboard/integrated",           icon: "◈" },
-  { label: "알림 센터",     href: "/dashboard/integrated/alerts",    icon: "◉" },
-  { label: "데이터 내보내기", href: "/dashboard/integrated/export",  icon: "◊" },
-  { label: "권한 관리",     href: "/dashboard/integrated/access",    icon: "◎" },
+  { label: "통합 대시보드",   href: "/dashboard/integrated",          icon: "◈" },
+  { label: "알림 센터",       href: "/dashboard/integrated/alerts",   icon: "◉" },
+  { label: "계정 관리",       href: "/dashboard/integrated/accounts", icon: "◒" },
+  { label: "데이터 내보내기", href: "/dashboard/integrated/export",   icon: "◊" },
+  { label: "권한 관리",       href: "/dashboard/integrated/access",   icon: "◎" },
+  { label: "가입 승인 관리",  href: "/dashboard/integrated/pending",  icon: "◑" },
 ];
 
 const insightMenu = [
@@ -77,6 +76,176 @@ const settingMenu = [
   { label: "도움말",   href: "/dashboard/help",     icon: "❓" },
 ];
 
+const MENU_ACCESS: Record<string, { manager: boolean; viewer: boolean }> = {
+  "/dashboard/hr":                      { manager: true,  viewer: true  },
+  "/dashboard/hr/employees":            { manager: true,  viewer: true  },
+  "/dashboard/hr/departments":          { manager: true,  viewer: false },
+  "/dashboard/hr/contracts":            { manager: true,  viewer: true  },
+  "/dashboard/hr/leave":                { manager: true,  viewer: true  },
+  "/dashboard/hr/payroll":              { manager: false, viewer: false },
+  "/dashboard/accounting":              { manager: true,  viewer: true  },
+  "/dashboard/ledger":                  { manager: true,  viewer: false },
+  "/dashboard/ocr":                     { manager: true,  viewer: false },
+  "/dashboard/card":                    { manager: true,  viewer: false },
+  "/dashboard/expense":                 { manager: true,  viewer: false },
+  "/dashboard/accounting/vendors":      { manager: true,  viewer: true  },
+  "/dashboard/accounting/ar-ap":        { manager: true,  viewer: false },
+  "/dashboard/accounting/statements":   { manager: false, viewer: false },
+  "/dashboard/accounting/tax-invoice":  { manager: true,  viewer: false },
+  "/dashboard/accounting/estimates":    { manager: true,  viewer: false },
+  "/dashboard/accounting/budget":       { manager: true,  viewer: false },
+  "/dashboard/production":              { manager: true,  viewer: true  },
+  "/dashboard/production/items":        { manager: true,  viewer: true  },
+  "/dashboard/production/bom":          { manager: true,  viewer: false },
+  "/dashboard/production/orders":       { manager: true,  viewer: true  },
+  "/dashboard/production/results":      { manager: true,  viewer: false },
+  "/dashboard/production/inventory":    { manager: true,  viewer: false },
+  "/dashboard/production/cost":         { manager: false, viewer: false },
+  "/dashboard/production/audit":        { manager: true,  viewer: true  },
+  "/dashboard/production/efficiency":   { manager: true,  viewer: false },
+  "/dashboard/distribution":            { manager: true,  viewer: true  },
+  "/dashboard/distribution/orders":     { manager: true,  viewer: true  },
+  "/dashboard/distribution/deliveries": { manager: true,  viewer: true  },
+  "/dashboard/distribution/vehicles":   { manager: true,  viewer: false },
+  "/dashboard/distribution/returns":    { manager: true,  viewer: false },
+  "/dashboard/distribution/analytics":  { manager: true,  viewer: false },
+  "/dashboard/distribution/fee":        { manager: true,  viewer: false },
+  "/dashboard/distribution/route":      { manager: true,  viewer: false },
+  "/dashboard/integrated":              { manager: false, viewer: false },
+  "/dashboard/integrated/alerts":       { manager: true,  viewer: true  },
+  "/dashboard/integrated/accounts":     { manager: false, viewer: false },
+  "/dashboard/integrated/export":       { manager: false, viewer: false },
+  "/dashboard/integrated/access":       { manager: false, viewer: false },
+  "/dashboard/integrated/pending":      { manager: false, viewer: false },
+  "/dashboard/business":                { manager: true,  viewer: false },
+  "/dashboard/analytics":               { manager: true,  viewer: false },
+  "/dashboard/ai":                      { manager: true,  viewer: true  },
+  "/dashboard/settings":                { manager: true,  viewer: true  },
+  "/dashboard/help":                    { manager: true,  viewer: true  },
+};
+
+const LABEL_TO_HREF: Record<string, string> = {
+  "직원 관리":          "/dashboard/hr/employees",
+  "급여 정산":          "/dashboard/hr/payroll",
+  "계약서":             "/dashboard/hr/contracts",
+  "휴가 관리":          "/dashboard/hr/leave",
+  "회계 장부":          "/dashboard/ledger",
+  "영수증 OCR":         "/dashboard/ocr",
+  "경비 정산":          "/dashboard/expense",
+  "거래처 관리":        "/dashboard/accounting/vendors",
+  "미수금 · 미지급금":  "/dashboard/accounting/ar-ap",
+  "재무제표":           "/dashboard/accounting/statements",
+  "세금계산서":         "/dashboard/accounting/tax-invoice",
+  "예산 관리":          "/dashboard/accounting/budget",
+  "품목 · 재고":        "/dashboard/production/items",
+  "생산 지시서":        "/dashboard/production/orders",
+  "원가 분석":          "/dashboard/production/cost",
+  "재고 실사":          "/dashboard/production/audit",
+  "수주 관리":          "/dashboard/distribution/orders",
+  "배송 지시":          "/dashboard/distribution/deliveries",
+  "반품 처리":          "/dashboard/distribution/returns",
+  "알림 센터":          "/dashboard/integrated/alerts",
+  "데이터 내보내기":    "/dashboard/integrated/export",
+  "거래처 · 사업장":    "/dashboard/business",
+  "경영분석":           "/dashboard/analytics",
+  "AI 회계비서":        "/dashboard/ai",
+  "환경설정":           "/dashboard/settings",
+  "도움말":             "/dashboard/help",
+  "권한 관리":          "/dashboard/integrated/access",
+  "가입 승인 관리":     "/dashboard/integrated/pending",
+};
+
+const canAccess = (
+  href: string,
+  role: string,
+  accessMap?: Record<string, { manager: boolean; viewer: boolean }>,
+): boolean => {
+  if (role === "admin") return true;
+  const a = (accessMap ?? MENU_ACCESS)[href];
+  if (!a) return role === "accountant";
+  return role === "accountant" ? a.manager : role === "employee" ? a.viewer : false;
+};
+
+const getSectionForPath = (path: string): string => {
+  if (path.startsWith("/dashboard/integrated")) return "integrated";
+  if (path.startsWith("/dashboard/hr"))          return "hr";
+  if (path.startsWith("/dashboard/production"))  return "production";
+  if (path.startsWith("/dashboard/distribution")) return "distribution";
+  if (path.startsWith("/dashboard/analytics") || path.startsWith("/dashboard/ai") || path.startsWith("/dashboard/business")) return "insight";
+  if (path.startsWith("/dashboard/settings") || path.startsWith("/dashboard/help") || path.startsWith("/dashboard/profile") || path.startsWith("/dashboard/security")) return "settings";
+  return "accounting";
+};
+
+/* SectionHeader/MenuItem은 DashboardLayout 컴포넌트 함수 "안"에 정의되어 있으면
+   openSections 등 상태가 바뀔 때마다(=거의 매 렌더마다) 새 함수 참조로 재생성되어
+   React가 매번 다른 컴포넌트 타입으로 취급 → 기존 DOM을 통째로 unmount/remount한다.
+   이 때 방금 클릭해 포커스를 갖고 있던 <button>도 함께 사라졌다가 새로 마운트되는데,
+   사이드바가 position:fixed라 브라우저가 포커스 복원 과정에서 문서 스크롤을 0으로
+   되돌려버려 "버튼 누르면 맨 위로 이동"하는 것처럼 보였다.
+   컴포넌트를 모듈 스코프로 빼서 참조를 고정하면 같은 DOM 노드가 그대로 재사용되어
+   재마운트가 일어나지 않고, 클릭 위치도 그대로 유지된다. */
+function SectionHeader({
+  label, section, openSections, setOpenSections,
+}: {
+  label: string;
+  section: string;
+  openSections: Record<string, boolean>;
+  setOpenSections: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}) {
+  return (
+    <button
+      onClick={() => setOpenSections(prev => ({ ...prev, [section]: !prev[section] }))}
+      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 16px 4px", background: "none", border: "none", cursor: "pointer" }}
+    >
+      <span style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0px" }}>{label}</span>
+      <span style={{ fontSize: "14px", color: "var(--text-muted)", display: "inline-block", transform: openSections[section] ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }}>›</span>
+    </button>
+  );
+}
+
+function MenuItem({
+  item, showStar = true, pathname, favorites, toggleFavorite,
+}: {
+  item: any;
+  showStar?: boolean;
+  pathname: string;
+  favorites: string[];
+  toggleFavorite: (href: string, e: React.MouseEvent) => void;
+}) {
+  const isActive = pathname === item.href;
+  const isFav = favorites.includes(item.href);
+  return (
+    <div style={{ position: "relative", margin: "1px 6px" }}>
+      <Link
+        href={item.href}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", paddingRight: showStar ? "30px" : "14px", borderRadius: "10px", textDecoration: "none", backgroundColor: isActive ? "var(--accent)" : "transparent", color: isActive ? "var(--accent-text)" : "var(--text-muted)" }}
+        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = "var(--bg-surface-2)"; e.currentTarget.style.color = "var(--text-primary)"; } }}
+        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; } }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", overflow: "hidden" }}>
+          <span style={{ fontSize: "16px", flexShrink: 0 }}>{item.icon}</span>
+          <span style={{ fontSize: "14px", fontWeight: isActive ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+        </div>
+        {item.badge && (
+          <span style={{ backgroundColor: "#EF4444", color: "white", fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "99px", flexShrink: 0 }}>
+            {item.badge}
+          </span>
+        )}
+      </Link>
+      {showStar && (
+        <button
+          onClick={e => toggleFavorite(item.href, e)}
+          style={{ position: "absolute", right: "6px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "12px", color: isFav ? "#C49A30" : "var(--text-subtle)", padding: "4px", lineHeight: 1, opacity: isFav ? 1 : 0.4 }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = "1"; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = isFav ? "1" : "0.4"; }}
+          title={isFav ? "즐겨찾기 해제" : "즐겨찾기 등록"}
+        >
+          {isFav ? "★" : "☆"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -84,6 +253,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null);
   const [business, setBusiness] = useState<any>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const active = getSectionForPath(pathname);
+    return { accounting: active === "accounting", hr: active === "hr", production: active === "production", distribution: active === "distribution", integrated: active === "integrated", insight: active === "insight", settings: active === "settings", favorites: true };
+  });
+  /* localStorage 기반 초기값은 항상 "employee"(서버가 렌더링할 수 있는 값)로
+     시작하고, 실제 값은 마운트 후 useEffect에서 반영한다.
+     lazy initializer 안에서 곧바로 localStorage를 읽으면 서버 렌더(HTML)는
+     "employee" 기준 메뉴로, 클라이언트 첫 렌더(hydration)는 실제 role 기준
+     메뉴로 나와버려서 서로 달라 hydration mismatch(콘솔 에러 + 트리 재생성)가
+     발생한다 — 사이드바 메뉴 항목이 서버/클라이언트에서 다르게 보이던 원인. */
+  const [userRole, setUserRole] = useState<string>("employee");
+  useEffect(() => {
+    try { setUserRole(JSON.parse(localStorage.getItem("user") || "{}").role || "employee"); }
+    catch { /* ignore */ }
+  }, []);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [ocrPendingCount, setOcrPendingCount] = useState(0);
@@ -99,18 +283,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     catch { return "bk-read-notifs-guest"; }
   };
 
-  // 알림 목록 (동적, 계정별)
-  const [notifs, setNotifs] = useState<NotifItem[]>(() => getNotifs());
+  // 알림 목록 (동적, 계정별) — 서버 렌더와 동일하게 빈 배열로 시작하고, 마운트 후 실제 값을 채운다
+  const [notifs, setNotifs] = useState<NotifItem[]>([]);
   const [hoveredNotifId, setHoveredNotifId] = useState<number | null>(null);
 
-  // 읽은 알림 ID — 계정별 영속
-  const [readIds, setReadIds] = useState<Set<number>>(() => {
-    if (typeof window !== "undefined") {
-      try { return new Set(JSON.parse(localStorage.getItem(getReadKey()) || "[]")); }
-      catch { return new Set(); }
-    }
-    return new Set();
-  });
+  // 읽은 알림 ID — 계정별 영속 (마찬가지로 마운트 후에 채운다)
+  const [readIds, setReadIds] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    setNotifs(getNotifs());
+    try { setReadIds(new Set(JSON.parse(localStorage.getItem(getReadKey()) || "[]"))); }
+    catch { /* ignore */ }
+  }, []);
 
   const unreadCount = notifs.filter(n => !readIds.has(n.id)).length;
 
@@ -135,6 +318,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleDeleteAll = () => clearNotifs();
 
+  const [menuAccess, setMenuAccess] = useState<Record<string, { manager: boolean; viewer: boolean }> | null>(null);
+
   const [bizDropOpen, setBizDropOpen] = useState(false);
   const [bizList, setBizList] = useState<any[]>([]);
   const [bizReady, setBizReady] = useState(false);
@@ -157,19 +342,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [proModal, setProModal] = useState<ModalConfig | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState<number>(() => new Date().getFullYear());
+  /* 이번 달(오늘 기준)로 서버/클라이언트 동일하게 시작하고, URL(?month=)이나
+     저장된 선택값은 마운트 후 useEffect에서 반영한다 — 렌더링 중에 URL/localStorage를
+     읽고 곧바로 localStorage.setItem까지 하던 이전 코드는 서버 렌더와 클라이언트 첫
+     렌더의 결과가 달라져 hydration mismatch를 일으켰다. */
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const p = new URLSearchParams(window.location.search);
-      const m = p.get("month");
-      if (m && /^\d{4}-\d{2}$/.test(m)) { localStorage.setItem("selectedMonth", m); return m; }
-      const stored = localStorage.getItem("selectedMonth");
-      if (stored && /^\d{4}-\d{2}$/.test(stored)) return stored;
-    }
     const d = new Date();
-    const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    if (typeof window !== "undefined") localStorage.setItem("selectedMonth", m);
-    return m;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const fromUrl = p.get("month");
+    const resolved =
+      (fromUrl && /^\d{4}-\d{2}$/.test(fromUrl)) ? fromUrl :
+      (() => { const stored = localStorage.getItem("selectedMonth"); return stored && /^\d{4}-\d{2}$/.test(stored) ? stored : null; })();
+    if (resolved) {
+      setSelectedMonth(resolved);
+      setPickerYear(Number(resolved.split("-")[0]));
+    }
+    localStorage.setItem("selectedMonth", resolved ?? selectedMonth);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectMonth = (year: number, mon: number) => {
     const m = `${year}-${String(mon).padStart(2, "0")}`;
@@ -195,17 +387,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     catch { /* ignore */ }
   }, []);
 
-  const mainMenu = mainMenuBase.map(item =>
+  const accountingMenuWithBadge = accountingMenu.map(item =>
     item.isOcr && ocrPendingCount > 0
       ? { ...item, badge: String(ocrPendingCount) }
       : item
   );
 
+  /* ── 즐겨찾기 ── */
+  const getFavKey = () => {
+    try { const id = JSON.parse(localStorage.getItem("user") || "{}").id; return id ? `bk-favorites-${id}` : "bk-favorites"; }
+    catch { return "bk-favorites"; }
+  };
+  const [favorites, setFavorites] = useState<string[]>([]);
+  useEffect(() => {
+    try { setFavorites(JSON.parse(localStorage.getItem(getFavKey()) || "[]")); } catch { setFavorites([]); }
+  }, []);
+  const toggleFavorite = (href: string, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    setFavorites(prev => {
+      const next = prev.includes(href) ? prev.filter(h => h !== href) : [...prev, href];
+      localStorage.setItem(getFavKey(), JSON.stringify(next));
+      return next;
+    });
+  };
+  const allMenuItems = [
+    ...accountingMenuWithBadge, ...hrMenu, ...productionMenu, ...distributionMenu,
+    ...integratedMenu, ...insightMenu, ...settingMenu,
+  ];
+  const favoriteItems = favorites
+    .map(href => allMenuItems.find(m => m.href === href))
+    .filter(Boolean)
+    .filter(item => canAccess(item!.href, userRole, menuAccess ?? undefined)) as typeof allMenuItems;
+
+  useEffect(() => {
+    const active = getSectionForPath(pathname);
+    setOpenSections(prev => ({ ...prev, [active]: true }));
+  }, [pathname]);
+
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) { router.push("/login"); return; }
     const u = localStorage.getItem("user");
-    if (u) setUser(JSON.parse(u));
+    if (u) {
+      const parsed = JSON.parse(u);
+      setUser(parsed);
+      setUserRole(parsed.role || "employee");
+    }
     /* 낙관적 렌더: localStorage 값으로 즉시 표시 */
     const b = localStorage.getItem("business");
     if (b) {
@@ -222,6 +449,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fetchOcrCount();
     const interval = setInterval(fetchOcrCount, 30000);
 
+    /* 역할별 메뉴 접근 권한 로드 */
+    api.get("/api/settings/role-access").then(res => {
+      if (res.data && Array.isArray(res.data)) {
+        const map: Record<string, { manager: boolean; viewer: boolean }> = {};
+        (res.data as { label: string; manager: boolean; viewer: boolean }[]).forEach(item => {
+          const href = LABEL_TO_HREF[item.label];
+          if (href) map[href] = { manager: item.manager, viewer: item.viewer };
+        });
+        setMenuAccess(map);
+      }
+    }).catch(() => { /* 설정 없으면 기본값 MENU_ACCESS 사용 */ });
+
     /* DB와 동기화: 사업장 없으면 등록 페이지를 메인으로, 있으면 대시보드 */
     api.get("/api/business/").then(res => {
       const list: any[] = res.data;
@@ -236,6 +475,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setBizList(list);
       localStorage.setItem("business", JSON.stringify(activeBiz));
       localStorage.setItem("activeBizId", String(activeBiz.id));
+      /* 서버의 PRO 구독 상태를 로컬 플래그와 동기화 (다른 기기/브라우저에서도 반영) */
+      try {
+        const uid = JSON.parse(localStorage.getItem("user") || "{}").id;
+        const proKey = uid ? `pro_plan_${uid}` : "pro_plan";
+        if (activeBiz.is_pro) localStorage.setItem(proKey, "true");
+        else localStorage.removeItem(proKey);
+        window.dispatchEvent(new CustomEvent("pro-plan-updated"));
+      } catch { /* ignore */ }
       setBizReady(true);
     }).catch(() => { setBizReady(true); /* 네트워크 오류 시 그대로 렌더 */ });
 
@@ -257,6 +504,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener("notif-added", onNotifAdded);
   }, []);
 
+  /* Socket.IO 실시간 경비 승인/반려 알림 — 백엔드(routers/expense.py)가
+     사업장 room으로만 emit하므로, 사업장이 바뀔 때마다 해당 room에 다시
+     join해야 한다. 이전엔 프론트에서 이 이벤트를 아무도 구독하지 않아
+     서버가 emit해도 화면엔 전혀 반영되지 않았다. */
+  useEffect(() => {
+    if (!business?.id) return;
+    joinBusinessRoom(business.id);
+    const onExpenseApproved = (data: { message: string }) => addNotif(data.message, "/dashboard/expense", "#22C55E");
+    const onExpenseRejected = (data: { message: string }) => addNotif(data.message, "/dashboard/expense", "#EF4444");
+    socket.on("expense_approved", onExpenseApproved);
+    socket.on("expense_rejected", onExpenseRejected);
+    return () => {
+      socket.off("expense_approved", onExpenseApproved);
+      socket.off("expense_rejected", onExpenseRejected);
+    };
+  }, [business?.id]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
@@ -277,6 +541,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener("user-updated", handler);
   }, []);
 
+  useEffect(() => {
+    const handler = () => {
+      api.get("/api/settings/role-access").then(res => {
+        if (res.data && Array.isArray(res.data)) {
+          const map: Record<string, { manager: boolean; viewer: boolean }> = {};
+          (res.data as { label: string; manager: boolean; viewer: boolean }[]).forEach(item => {
+            const href = LABEL_TO_HREF[item.label];
+            if (href) map[href] = { manager: item.manager, viewer: item.viewer };
+          });
+          setMenuAccess(map);
+        }
+      }).catch(() => {});
+    };
+    window.addEventListener("role-access-updated", handler);
+    return () => window.removeEventListener("role-access-updated", handler);
+  }, []);
+
   const handleLogout = () => {
     /* pro_plan_{userId}는 사용자가 해지할 때만 삭제 — 로그아웃에서는 건드리지 않음 */
     /* 알림 읽음/삭제 상태는 계정별(userId) 키로 저장되므로 로그아웃 시 건드리지 않음 */
@@ -285,33 +566,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/login");
   };
 
-  const MenuItem = ({ item }: { item: any }) => {
-    const isActive = pathname === item.href;
-    return (
-      <Link
-        href={item.href}
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: "10px", margin: "1px 8px", textDecoration: "none", backgroundColor: isActive ? "var(--accent)" : "transparent", color: isActive ? "var(--accent-text)" : "var(--text-muted)" }}
-        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = "var(--bg-surface-2)"; e.currentTarget.style.color = "var(--text-primary)"; } }}
-        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; } }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "15px" }}>{item.icon}</span>
-          <span style={{ fontSize: "13px", fontWeight: isActive ? 700 : 500 }}>{item.label}</span>
-        </div>
-        {item.badge && (
-          <span style={{ backgroundColor: "#EF4444", color: "white", fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "99px" }}>
-            {item.badge}
-          </span>
-        )}
-      </Link>
-    );
-  };
+
+  const filterMenu = (items: { href: string; [key: string]: any }[]) =>
+    items.filter(item => canAccess(item.href, userRole, menuAccess ?? undefined));
+
+  const filteredHr           = filterMenu(hrMenu);
+  const filteredAccounting   = filterMenu(accountingMenuWithBadge);
+  const filteredProduction   = filterMenu(productionMenu);
+  const filteredDistribution = filterMenu(distributionMenu);
+  const filteredIntegrated   = filterMenu(integratedMenu);
+  const filteredInsight      = filterMenu(insightMenu);
+  const filteredSettings     = filterMenu(settingMenu);
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "var(--bg)" }}>
 
       {/* ── 사이드바 ── */}
-      <div style={{ width: "200px", minHeight: "100vh", backgroundColor: "var(--bg-surface)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", position: "fixed", left: 0, top: 0, bottom: 0, zIndex: 100 }}>
+      <div style={{ width: "220px", minHeight: "100vh", backgroundColor: "var(--bg-surface)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", position: "fixed", left: 0, top: 0, bottom: 0, zIndex: 100 }}>
 
         {/* 로고 */}
         <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid var(--border-subtle)" }}>
@@ -391,22 +662,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* 메뉴 */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "8px 16px 4px", letterSpacing: "0.8px" }}>메인</p>
-          {mainMenu.map(item => <MenuItem key={item.href} item={item} />)}
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>인사관리</p>
-          {hrMenu.map(item => <MenuItem key={item.href} item={item} />)}
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>회계관리</p>
-          {accountingMenu.map(item => <MenuItem key={item.href} item={item} />)}
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>생산관리</p>
-          {productionMenu.map(item => <MenuItem key={item.href} item={item} />)}
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>유통관리</p>
-          {distributionMenu.map(item => <MenuItem key={item.href} item={item} />)}
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>통합관리</p>
-          {integratedMenu.map(item => <MenuItem key={item.href} item={item} />)}
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>인사이트</p>
-          {insightMenu.map(item => <MenuItem key={item.href} item={item} />)}
-          <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-subtle)", padding: "12px 16px 4px", letterSpacing: "0.8px" }}>설정</p>
-          {settingMenu.map(item => <MenuItem key={item.href} item={item} />)}
+
+          {/* 즐겨찾기 */}
+          {favoriteItems.length > 0 && (
+            <>
+              <SectionHeader label="즐겨찾기" section="favorites" openSections={openSections} setOpenSections={setOpenSections} />
+              {(openSections.favorites !== false) && favoriteItems.map(item => (
+                <MenuItem key={`fav-${item.href}`} item={item} showStar={true} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />
+              ))}
+            </>
+          )}
+
+          {filteredIntegrated.length > 0 && (<>
+            <SectionHeader label="통합관리" section="integrated" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.integrated && filteredIntegrated.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
+
+          {filteredHr.length > 0 && (<>
+            <SectionHeader label="인사관리" section="hr" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.hr && filteredHr.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
+
+          {filteredAccounting.length > 0 && (<>
+            <SectionHeader label="회계관리" section="accounting" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.accounting && filteredAccounting.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
+
+          {filteredProduction.length > 0 && (<>
+            <SectionHeader label="생산관리" section="production" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.production && filteredProduction.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
+
+          {filteredDistribution.length > 0 && (<>
+            <SectionHeader label="유통관리" section="distribution" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.distribution && filteredDistribution.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
+
+          {filteredInsight.length > 0 && (<>
+            <SectionHeader label="인사이트" section="insight" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.insight && filteredInsight.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
+
+          {filteredSettings.length > 0 && (<>
+            <SectionHeader label="설정" section="settings" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.settings && filteredSettings.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
         </div>
 
         {/* PRO 플랜 배너 */}
@@ -422,7 +722,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* ── 메인 영역 ── */}
-      <div style={{ marginLeft: "200px", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ marginLeft: "220px", flex: 1, display: "flex", flexDirection: "column" }}>
 
         {/* 헤더 */}
         <div style={{ height: "56px", backgroundColor: "var(--bg-surface)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", position: "sticky", top: 0, zIndex: 99 }}>
@@ -485,13 +785,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               );
             })()}
 
-            {/* 거래 추가 */}
-            <button
-              onClick={() => router.push("/dashboard?modal=journal")}
-              style={{ backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(255,190,80,0.25)" }}>
-              <span>+</span> 거래 추가
-            </button>
-
             <ThemeToggle />
 
             {/* 알림 */}
@@ -530,7 +823,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                   <div style={{ maxHeight: "360px", overflowY: "auto" }}>
                     {notifs.length === 0 ? (
-                      <p style={{ padding: "32px 16px", textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>알림이 없습니다.</p>
+                      <p style={{ padding: "32px 16px", textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>알림이 없습니다</p>
                     ) : notifs.map((n, i) => {
                       const isUnread = !readIds.has(n.id);
                       const isHovered = hoveredNotifId === n.id;

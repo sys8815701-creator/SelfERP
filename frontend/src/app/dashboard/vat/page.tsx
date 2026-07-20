@@ -11,7 +11,7 @@ import Modal, { ModalConfig } from "@/components/Modal";
 import { addNotif } from "@/lib/notif";
 
 interface VatStatus {
-  period: string; deadline: string; days_remaining: number;
+  period: string; deadline: string; days_until: number;
   progress_pct: number; checklist: Array<{ item: string; done: boolean }>;
   vat_payable: number; estimated_refund: number;
 }
@@ -70,16 +70,16 @@ export default function VatPage() {
         setSummary(sRes.data);
         const v = vRes.data;
         const userId = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}").id || "guest"; } catch { return "guest"; } })();
-        if (v.days_remaining <= 7) {
+        if (v.days_until <= 7) {
           const key = `bk-vat-warn7-${userId}`;
           if (localStorage.getItem(key) !== v.period) {
-            addNotif(`⚠️ 부가세 신고 마감 ${v.days_remaining}일 전입니다 (${v.deadline})`, "/dashboard/vat", "#EF4444");
+            addNotif(`⚠️ 부가세 신고 마감 ${v.days_until}일 전입니다 (${v.deadline})`, "/dashboard/vat", "#EF4444");
             localStorage.setItem(key, v.period);
           }
-        } else if (v.days_remaining <= 30) {
+        } else if (v.days_until <= 30) {
           const key = `bk-vat-warn30-${userId}`;
           if (localStorage.getItem(key) !== v.period) {
-            addNotif(`부가세 신고 마감 ${v.days_remaining}일 전입니다 (${v.deadline})`, "/dashboard/vat", "#f97316");
+            addNotif(`부가세 신고 마감 ${v.days_until}일 전입니다 (${v.deadline})`, "/dashboard/vat", "#f97316");
             localStorage.setItem(key, v.period);
           }
         }
@@ -99,7 +99,7 @@ export default function VatPage() {
   const deleteItem  = (id: number) => saveChecklist(checklist.filter(c => c.id !== id));
 
   const card: React.CSSProperties = { backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)" };
-  const deadlineColor = !vat ? "var(--accent)" : vat.days_remaining <= 7 ? "#EF4444" : vat.days_remaining <= 14 ? "#f97316" : "#22C55E";
+  const deadlineColor = !vat ? "var(--accent)" : vat.days_until <= 7 ? "#EF4444" : vat.days_until <= 14 ? "#f97316" : "#22C55E";
   const doneCnt = checklist.filter(c => c.done).length;
   const progressPct = checklist.length > 0 ? Math.round(doneCnt / checklist.length * 100) : 0;
 
@@ -149,11 +149,11 @@ export default function VatPage() {
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-muted)", marginBottom: "4px" }}>{vat.period} 부가세 신고</p>
             <h2 style={{ fontSize: "28px", fontWeight: 900, color: deadlineColor }}>
-              {vat.days_remaining > 0 ? `D-${vat.days_remaining}` : "D-Day"}
+              {vat.days_until > 0 ? `D-${vat.days_until}` : "D-Day"}
             </h2>
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "2px" }}>신고 마감일: {vat.deadline}</p>
           </div>
-          {vat.days_remaining <= 7 && (
+          {vat.days_until <= 7 && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "rgba(239,68,68,0.1)", color: "#EF4444", padding: "8px 14px", borderRadius: "10px" }}>
               <AlertTriangle size={16} />
               <span style={{ fontSize: "13px", fontWeight: 700 }}>기한 임박!</span>

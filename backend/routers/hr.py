@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from core.database import get_db
-from core.deps import get_current_business
+from core.deps import get_current_business, get_current_user
 from models.business import Business
+from models.user import User
 from models.department import Department
 from models.position import Position
 from models.employee import Employee
 from models.contract import Contract
 from models.leave import Leave
+from models.payroll import Payroll, Severance
 from schemas.hr import (
     DepartmentCreate, DepartmentUpdate, DepartmentResponse,
     PositionCreate, PositionUpdate, PositionResponse,
@@ -19,6 +21,16 @@ from schemas.hr import (
 from typing import List
 
 router = APIRouter(prefix="/api/hr", tags=["hr"])
+
+
+def require_manager(
+    current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
+) -> Business:
+    """부서·직급·직원·계약서 등 인사 정보 변경은 admin/accountant(매니저)만 가능."""
+    if current_user.role not in ("admin", "accountant"):
+        raise HTTPException(status_code=403, detail="인사 정보를 변경할 권한이 없습니다.")
+    return business
 
 
 # ── HR 개요 ───────────────────────────────────────────────
@@ -73,7 +85,7 @@ def list_departments(
 @router.post("/departments", response_model=DepartmentResponse, status_code=201)
 def create_department(
     data: DepartmentCreate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     dept = Department(**data.dict(), business_id=business.id)
@@ -89,7 +101,7 @@ def create_department(
 def update_department(
     dept_id: int,
     data: DepartmentUpdate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     dept = db.query(Department).filter(
@@ -112,7 +124,7 @@ def update_department(
 @router.delete("/departments/{dept_id}", status_code=204)
 def delete_department(
     dept_id: int,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     dept = db.query(Department).filter(
@@ -120,7 +132,9 @@ def delete_department(
     ).first()
     if not dept:
         raise HTTPException(status_code=404, detail="부서를 찾을 수 없습니다.")
-    emp_count = db.query(Employee).filter(Employee.department_id == dept_id).count()
+    emp_count = db.query(Employee).filter(
+        Employee.department_id == dept_id, Employee.status == "재직"
+    ).count()
     if emp_count > 0:
         raise HTTPException(status_code=400, detail="소속 직원이 있는 부서는 삭제할 수 없습니다.")
     db.delete(dept)
@@ -150,7 +164,7 @@ def list_positions(
 @router.post("/positions", response_model=PositionResponse, status_code=201)
 def create_position(
     data: PositionCreate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     pos = Position(**data.dict(), business_id=business.id)
@@ -166,7 +180,7 @@ def create_position(
 def update_position(
     pos_id: int,
     data: PositionUpdate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     pos = db.query(Position).filter(
@@ -189,7 +203,7 @@ def update_position(
 @router.delete("/positions/{pos_id}", status_code=204)
 def delete_position(
     pos_id: int,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     pos = db.query(Position).filter(
@@ -197,7 +211,9 @@ def delete_position(
     ).first()
     if not pos:
         raise HTTPException(status_code=404, detail="직급을 찾을 수 없습니다.")
-    emp_count = db.query(Employee).filter(Employee.position_id == pos_id).count()
+    emp_count = db.query(Employee).filter(
+        Employee.position_id == pos_id, Employee.status == "재직"
+    ).count()
     if emp_count > 0:
         raise HTTPException(status_code=400, detail="소속 직원이 있는 직급은 삭제할 수 없습니다.")
     db.delete(pos)
@@ -230,7 +246,7 @@ def list_employees(
 @router.post("/employees", response_model=EmployeeResponse, status_code=201)
 def create_employee(
     data: EmployeeCreate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     emp = Employee(**data.dict(), business_id=business.id)
@@ -264,7 +280,7 @@ def get_employee(
 def update_employee(
     emp_id: int,
     data: EmployeeUpdate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(
@@ -285,7 +301,7 @@ def update_employee(
 @router.delete("/employees/{emp_id}", status_code=204)
 def delete_employee(
     emp_id: int,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(
@@ -293,6 +309,13 @@ def delete_employee(
     ).first()
     if not emp:
         raise HTTPException(status_code=404, detail="직원을 찾을 수 없습니다.")
+    has_records = (
+        db.query(Leave).filter(Leave.employee_id == emp_id).first()
+        or db.query(Payroll).filter(Payroll.employee_id == emp_id).first()
+        or db.query(Severance).filter(Severance.employee_id == emp_id).first()
+    )
+    if has_records:
+        raise HTTPException(status_code=400, detail="휴가·급여·퇴직금 기록이 있는 직원은 삭제할 수 없습니다. 재직 상태를 '퇴직'으로 변경해 주세요.")
     db.delete(emp)
     db.commit()
 
@@ -319,7 +342,7 @@ def list_contracts(
 @router.post("/contracts", response_model=ContractResponse, status_code=201)
 def create_contract(
     data: ContractCreate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     contract = Contract(**data.dict(), business_id=business.id)
@@ -335,7 +358,7 @@ def create_contract(
 def update_contract(
     contract_id: int,
     data: ContractUpdate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     contract = db.query(Contract).filter(
@@ -355,7 +378,7 @@ def update_contract(
 @router.delete("/contracts/{contract_id}", status_code=204)
 def delete_contract(
     contract_id: int,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     contract = db.query(Contract).filter(
@@ -392,7 +415,7 @@ def list_leaves(
 @router.post("/leaves", response_model=LeaveResponse, status_code=201)
 def create_leave(
     data: LeaveCreate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(
@@ -413,7 +436,7 @@ def create_leave(
 def update_leave(
     leave_id: int,
     data: LeaveUpdate,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     leave = db.query(Leave).filter(
@@ -433,7 +456,7 @@ def update_leave(
 @router.delete("/leaves/{leave_id}", status_code=204)
 def delete_leave(
     leave_id: int,
-    business: Business = Depends(get_current_business),
+    business: Business = Depends(require_manager),
     db: Session = Depends(get_db),
 ):
     leave = db.query(Leave).filter(

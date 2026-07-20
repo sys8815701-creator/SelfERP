@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from core.database import get_db
+from core.deps import get_current_business
+from models.business import Business
 from models.card_sale import CardSale
 from models.bank_transaction import BankTransaction
 import pandas as pd
@@ -10,7 +12,11 @@ router = APIRouter(prefix="/api/upload", tags=["upload"])
 
 # 카드매출 CSV 업로드
 @router.post("/card-sales")
-async def upload_card_sales(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_card_sales(
+    file: UploadFile = File(...),
+    business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
     contents = await file.read()
     df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig")))
 
@@ -22,7 +28,7 @@ async def upload_card_sales(file: UploadFile = File(...), db: Session = Depends(
     saved = 0
     for _, row in df.iterrows():
         card_sale = CardSale(
-            business_id=1,  # 추후 JWT에서 추출
+            business_id=business.id,
             card_company=row.get("card_company"),
             approval_no=str(row.get("approval_no")),
             approval_date=pd.to_datetime(row.get("approval_date")).date(),
@@ -39,7 +45,11 @@ async def upload_card_sales(file: UploadFile = File(...), db: Session = Depends(
 
 # 은행거래 CSV 업로드
 @router.post("/bank-transactions")
-async def upload_bank_transactions(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_bank_transactions(
+    file: UploadFile = File(...),
+    business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
     contents = await file.read()
     df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig")))
 
@@ -51,7 +61,7 @@ async def upload_bank_transactions(file: UploadFile = File(...), db: Session = D
     saved = 0
     for _, row in df.iterrows():
         transaction = BankTransaction(
-            business_id=1,  # 추후 JWT에서 추출
+            business_id=business.id,
             transaction_date=pd.to_datetime(row.get("transaction_date")).date(),
             description=row.get("description"),
             deposit=float(row.get("deposit", 0)),
@@ -68,8 +78,11 @@ async def upload_bank_transactions(file: UploadFile = File(...), db: Session = D
 
 # 카드매출 목록 조회
 @router.get("/card-sales")
-def get_card_sales(db: Session = Depends(get_db)):
-    sales = db.query(CardSale).all()
+def get_card_sales(
+    business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
+    sales = db.query(CardSale).filter(CardSale.business_id == business.id).all()
     return [
         {
             "id": s.id,
@@ -84,8 +97,11 @@ def get_card_sales(db: Session = Depends(get_db)):
 
 # 은행거래 목록 조회
 @router.get("/bank-transactions")
-def get_bank_transactions(db: Session = Depends(get_db)):
-    transactions = db.query(BankTransaction).all()
+def get_bank_transactions(
+    business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+):
+    transactions = db.query(BankTransaction).filter(BankTransaction.business_id == business.id).all()
     return [
         {
             "id": t.id,

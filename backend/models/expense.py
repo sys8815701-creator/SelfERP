@@ -7,6 +7,7 @@ class Expense(Base):
     __tablename__ = "expenses"
 
     id           = Column(Integer, primary_key=True, autoincrement=True)
+    business_id  = Column(Integer, ForeignKey("businesses.id"), nullable=True)
     title        = Column(String(100))
     amount       = Column(Numeric(15, 2))
     category     = Column(String(50))

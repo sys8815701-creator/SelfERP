@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { useRole } from "@/hooks/useRole";
 
 type StmtTab = "income" | "balance" | "cashflow";
 
@@ -17,6 +18,7 @@ function sign(v: number) {
 }
 
 export default function StatementsPage() {
+  const role = useRole();
   const [tab, setTab]       = useState<StmtTab>("income");
   const [year, setYear]     = useState(new Date().getFullYear());
   const [month, setMonth]   = useState<number | null>(null);
@@ -48,9 +50,10 @@ export default function StatementsPage() {
   useEffect(() => { load(); }, [load]);
 
   const tabStyle = (t: StmtTab) => ({
-    padding: "8px 18px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 700,
-    backgroundColor: tab === t ? "var(--accent)" : "var(--bg-surface-2)",
-    color: tab === t ? "var(--accent-text)" : "var(--text-muted)",
+    padding: "7px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 600, transition: "all 0.15s",
+    backgroundColor: tab === t ? "var(--bg-surface)" : "transparent",
+    color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+    boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
   });
 
   const Row = ({ label, value, sub, indent = false, bold = false }: any) => (
@@ -67,17 +70,26 @@ export default function StatementsPage() {
     <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", padding: "14px 0 6px", borderBottom: "2px solid var(--border)", letterSpacing: "0.6px" }}>{label}</p>
   );
 
+  if (role !== "admin") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: "10px", color: "var(--text-muted)" }}>
+        <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>접근 권한이 없습니다</p>
+        <p style={{ fontSize: "13px" }}>재무제표는 사업장 관리자(admin)만 확인할 수 있습니다.</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* 헤더 */}
-      <div style={{ marginBottom: "24px" }}>
+      <div>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>재무제표</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>입출금 데이터를 기반으로 자동 생성됩니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>입출금 데이터를 기반으로 자동 생성됩니다</p>
       </div>
 
       {/* 탭 + 연/월 선택 */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
+      <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+        <div style={{ display: "flex", gap: "4px", backgroundColor: "var(--bg-surface-2)", padding: "4px", borderRadius: "10px", width: "fit-content" }}>
           <button style={tabStyle("income")}  onClick={() => setTab("income")}>손익계산서</button>
           <button style={tabStyle("balance")} onClick={() => setTab("balance")}>대차대조표</button>
           <button style={tabStyle("cashflow")}onClick={() => setTab("cashflow")}>현금흐름표</button>
@@ -92,7 +104,7 @@ export default function StatementsPage() {
             <option value="">전체 (연간)</option>
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m}월</option>)}
           </select>
-          <button onClick={load} style={{ padding: "7px 14px", backgroundColor: "var(--accent)", color: "var(--accent-text)", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          <button onClick={load} style={{ padding: "7px 14px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
             조회
           </button>
         </div>
@@ -101,7 +113,7 @@ export default function StatementsPage() {
       {loading ? (
         <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>계산 중...</div>
       ) : (
-        <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "28px 32px" }}>
+        <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "var(--shadow)", padding: "28px 32px" }}>
           {/* ── 손익계산서 ── */}
           {tab === "income" && income && (
             <>

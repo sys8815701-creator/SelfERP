@@ -67,6 +67,8 @@ class EmployeeCreate(BaseModel):
     gender: Optional[str] = None
     hire_date: date
     employment_type: str = "정규직"
+    status: Optional[str] = "재직"
+    resign_date: Optional[date] = None
     department_id: Optional[int] = None
     position_id: Optional[int] = None
     base_salary: float = 0
@@ -116,6 +118,13 @@ class EmployeeResponse(BaseModel):
     employment_type: str
     status: str
     base_salary: float
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    bank_holder: Optional[str] = None
+    address: Optional[str] = None
+    emergency_name: Optional[str] = None
+    emergency_phone: Optional[str] = None
+    note: Optional[str] = None
     department_name: Optional[str] = None
     position_name: Optional[str] = None
     created_at: datetime

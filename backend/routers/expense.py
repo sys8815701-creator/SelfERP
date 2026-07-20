@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
-from core.deps import get_current_user
+from core.deps import get_current_user, get_current_business
 from core.socket import sio
 from models.expense import Expense
 from models.user import User
+from models.business import Business
 from schemas.expense import ExpenseCreate, ExpenseResponse
 from typing import List
 from datetime import datetime
@@ -12,34 +13,43 @@ from datetime import datetime
 router = APIRouter(prefix="/api/expense", tags=["expense"])
 
 
-# 경비 목록 조회 (현재 사용자의 경비만)
+# 경비 목록 조회 (admin/accountant는 사업장 전체, 일반 직원은 본인 신청건만)
 @router.get("/", response_model=List[ExpenseResponse])
 def get_expenses(
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
     db: Session = Depends(get_db),
 ):
-    return (
-        db.query(Expense)
-        .filter(Expense.requested_by == current_user.id)
-        .order_by(Expense.requested_at.desc())
-        .all()
-    )
+    query = db.query(Expense).filter(Expense.business_id == business.id)
+    if current_user.role not in ("admin", "accountant"):
+        query = query.filter(Expense.requested_by == current_user.id)
+    expenses = query.order_by(Expense.requested_at.desc()).all()
+
+    results = []
+    for e in expenses:
+        r = ExpenseResponse.from_orm(e)
+        r.requester_name = e.requested_by_user.name if e.requested_by_user else None
+        results.append(r)
+    return results
 
 
-# 경비 단건 조회
+# 경비 단건 조회 (admin/accountant는 사업장 전체, 일반 직원은 본인 신청건만)
 @router.get("/{expense_id}", response_model=ExpenseResponse)
 def get_expense(
     expense_id: int,
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
     db: Session = Depends(get_db),
 ):
-    expense = db.query(Expense).filter(
-        Expense.id == expense_id,
-        Expense.requested_by == current_user.id,
-    ).first()
+    query = db.query(Expense).filter(Expense.id == expense_id, Expense.business_id == business.id)
+    if current_user.role not in ("admin", "accountant"):
+        query = query.filter(Expense.requested_by == current_user.id)
+    expense = query.first()
     if not expense:
         raise HTTPException(status_code=404, detail="경비를 찾을 수 없습니다.")
-    return expense
+    r = ExpenseResponse.from_orm(expense)
+    r.requester_name = expense.requested_by_user.name if expense.requested_by_user else None
+    return r
 
 
 # 경비 신청
@@ -47,9 +57,11 @@ def get_expense(
 def create_expense(
     data: ExpenseCreate,
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
     db: Session = Depends(get_db),
 ):
     expense = Expense(
+        business_id=business.id,
         title=data.title,
         amount=data.amount,
         category=data.category,
@@ -64,14 +76,20 @@ def create_expense(
     return expense
 
 
-# 경비 승인
+# 경비 승인 (해당 사업장의 관리자/회계담당자만)
 @router.patch("/{expense_id}/approve", response_model=ExpenseResponse)
 async def approve_expense(
     expense_id: int,
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
     db: Session = Depends(get_db),
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if current_user.role not in ("admin", "accountant"):
+        raise HTTPException(status_code=403, detail="경비를 승인할 권한이 없습니다.")
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.business_id == business.id,
+    ).first()
     if not expense:
         raise HTTPException(status_code=404, detail="경비를 찾을 수 없습니다.")
     if expense.status == "approved":
@@ -88,18 +106,24 @@ async def approve_expense(
         "title":      expense.title,
         "amount":     float(expense.amount),
         "message":    f"경비 '{expense.title}' 승인되었습니다.",
-    })
+    }, room=f"business_{business.id}")
     return expense
 
 
-# 경비 반려
+# 경비 반려 (해당 사업장의 관리자/회계담당자만)
 @router.patch("/{expense_id}/reject", response_model=ExpenseResponse)
 async def reject_expense(
     expense_id: int,
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
     db: Session = Depends(get_db),
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if current_user.role not in ("admin", "accountant"):
+        raise HTTPException(status_code=403, detail="경비를 반려할 권한이 없습니다.")
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.business_id == business.id,
+    ).first()
     if not expense:
         raise HTTPException(status_code=404, detail="경비를 찾을 수 없습니다.")
     if expense.status == "rejected":
@@ -115,7 +139,7 @@ async def reject_expense(
         "expense_id": expense.id,
         "title":      expense.title,
         "message":    f"경비 '{expense.title}' 반려되었습니다.",
-    })
+    }, room=f"business_{business.id}")
     return expense
 
 
@@ -124,11 +148,13 @@ async def reject_expense(
 def delete_expense(
     expense_id: int,
     current_user: User = Depends(get_current_user),
+    business: Business = Depends(get_current_business),
     db: Session = Depends(get_db),
 ):
     expense = db.query(Expense).filter(
         Expense.id == expense_id,
         Expense.requested_by == current_user.id,
+        Expense.business_id == business.id,
     ).first()
     if not expense:
         raise HTTPException(status_code=404, detail="경비를 찾을 수 없습니다.")

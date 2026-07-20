@@ -32,10 +32,10 @@ export default function EfficiencyPage() {
   const s = data.summary;
 
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+    <div style={{ width: "100%" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>생산 효율 분석</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산 달성률, 불량률, 안전재고 현황을 통합 조회합니다.</p>
+        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>생산 달성률, 불량률, 안전재고 현황을 통합 조회합니다</p>
       </div>
 
       {/* 탭 */}
@@ -62,7 +62,7 @@ export default function EfficiencyPage() {
               { label: "평균 불량률", value: `${s.avg_defect_rate ?? 0}%`, warn: (s.avg_defect_rate ?? 0) > 5 },
               { label: "총 불량 수량", value: fmt(s.total_defect), warn: (s.total_defect ?? 0) > 0 },
             ].map(c => (
-              <div key={c.label} style={{ backgroundColor: "var(--bg-surface)", border: `1px solid ${c.warn ? "#FCA5A5" : "var(--border)"}`, borderRadius: "14px", padding: "18px 20px" }}>
+              <div key={c.label} style={{ backgroundColor: c.warn ? "rgba(220,38,38,0.12)" : "var(--bg-surface)", border: `1px solid ${c.warn ? "rgba(220,38,38,0.40)" : "var(--border)"}`, borderRadius: "14px", padding: "18px 20px" }}>
                 <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{c.label}</p>
                 <p style={{ fontSize: "24px", fontWeight: 900, color: c.warn ? "#DC2626" : "var(--text-primary)" }}>{c.value}</p>
               </div>
@@ -83,7 +83,7 @@ export default function EfficiencyPage() {
                 {loading ? (
                   <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>불러오는 중...</td></tr>
                 ) : data.orders.length === 0 ? (
-                  <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>분석할 생산 실적이 없습니다.</td></tr>
+                  <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>분석할 생산 실적이 없습니다</td></tr>
                 ) : data.orders.map((o: any, i: number) => (
                   <tr key={o.order_id}
                     style={{ borderBottom: i < data.orders.length - 1 ? "1px solid var(--border-subtle)" : "none" }}
@@ -107,14 +107,16 @@ export default function EfficiencyPage() {
                     <td style={{ padding: "12px 14px", fontSize: "13px", color: o.defect_qty > 0 ? "#DC2626" : "var(--text-muted)" }}>{fmt(o.defect_qty)}</td>
                     <td style={{ padding: "12px 14px" }}>
                       <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700,
-                        backgroundColor: o.defect_rate > 5 ? "#FEF2F2" : o.defect_rate > 0 ? "#FEF9C3" : "#DCFCE7",
+                        backgroundColor: o.defect_rate > 5 ? "rgba(220,38,38,0.12)" : o.defect_rate > 0 ? "rgba(217,119,6,0.12)" : "rgba(21,128,61,0.12)",
+                        border: o.defect_rate > 5 ? "1px solid rgba(220,38,38,0.40)" : o.defect_rate > 0 ? "1px solid rgba(217,119,6,0.40)" : "1px solid rgba(21,128,61,0.40)",
                         color: o.defect_rate > 5 ? "#DC2626" : o.defect_rate > 0 ? "#A16207" : "#15803D" }}>
                         {o.defect_rate}%
                       </span>
                     </td>
                     <td style={{ padding: "12px 14px" }}>
                       <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700,
-                        backgroundColor: o.status === "완료" ? "#DCFCE7" : "#DBEAFE",
+                        backgroundColor: o.status === "완료" ? "rgba(21,128,61,0.12)" : "rgba(29,78,216,0.12)",
+                        border: o.status === "완료" ? "1px solid rgba(21,128,61,0.40)" : "1px solid rgba(29,78,216,0.40)",
                         color: o.status === "완료" ? "#15803D" : "#1D4ED8" }}>
                         {o.status}
                       </span>
@@ -144,13 +146,13 @@ export default function EfficiencyPage() {
               ) : alerts.length === 0 ? (
                 <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center" }}>
                   <p style={{ fontSize: "22px", marginBottom: "8px" }}>✓</p>
-                  <p style={{ fontSize: "14px", fontWeight: 700, color: "#15803D" }}>모든 품목이 안전재고 이상입니다.</p>
+                  <p style={{ fontSize: "14px", fontWeight: 700, color: "#15803D" }}>모든 품목이 안전재고 이상입니다</p>
                 </td></tr>
               ) : alerts.map((item, i) => (
                 <tr key={item.id}
-                  style={{ borderBottom: i < alerts.length - 1 ? "1px solid var(--border-subtle)" : "none", backgroundColor: item.current_stock <= 0 ? "rgba(254,242,242,0.5)" : "transparent" }}
+                  style={{ borderBottom: i < alerts.length - 1 ? "1px solid var(--border-subtle)" : "none", backgroundColor: item.current_stock <= 0 ? "rgba(220,38,38,0.08)" : "transparent" }}
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--bg-surface-2)")}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = item.current_stock <= 0 ? "rgba(254,242,242,0.5)" : "transparent")}>
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = item.current_stock <= 0 ? "rgba(220,38,38,0.08)" : "transparent")}>
                   <td style={{ padding: "12px 14px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
                     {item.current_stock <= 0 && <span style={{ fontSize: "11px", color: "#DC2626", fontWeight: 700, marginRight: "6px" }}>재고없음</span>}
                     {item.item_name}
@@ -162,7 +164,8 @@ export default function EfficiencyPage() {
                   <td style={{ padding: "12px 14px", fontSize: "13px", fontWeight: 700, color: "#DC2626" }}>+{fmt(item.shortage, 3)}</td>
                   <td style={{ padding: "12px 14px" }}>
                     <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700,
-                      backgroundColor: item.shortage_pct >= 100 ? "#FEF2F2" : "#FEF9C3",
+                      backgroundColor: item.shortage_pct >= 100 ? "rgba(220,38,38,0.12)" : "rgba(217,119,6,0.12)",
+                      border: item.shortage_pct >= 100 ? "1px solid rgba(220,38,38,0.40)" : "1px solid rgba(217,119,6,0.40)",
                       color: item.shortage_pct >= 100 ? "#DC2626" : "#A16207" }}>
                       {item.shortage_pct}% 부족
                     </span>

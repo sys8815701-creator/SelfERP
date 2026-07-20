@@ -19,6 +19,7 @@ class BusinessResponse(BaseModel):
     industry:        Optional[str]
     business_type:   Optional[str]
     open_date:       Optional[date]
+    is_pro:          Optional[int] = 0
 
     class Config:
         from_attributes = True

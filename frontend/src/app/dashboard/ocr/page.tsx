@@ -114,7 +114,7 @@ export default function OcrPage() {
       setSessionReceipts(prev => [res.data, ...prev]);
       setSelected(res.data);
       fetchAll();
-      const vendor = res.data?.vendor_name || res.data?.description || "영수증";
+      const vendor = res.data?.vendor || "영수증";
       const amt = res.data?.total_amount ? ` ₩${Math.round(res.data.total_amount).toLocaleString("ko-KR")}` : "";
       addNotif(`OCR 처리 완료 — ${vendor}${amt}`, "/dashboard/ocr", "var(--accent)");
     } catch (e: any) {
@@ -135,14 +135,14 @@ export default function OcrPage() {
       setRegisterDone(id);
       fetchAll();
     } catch (e: any) {
-      setModal({ title: "장부 등록 실패", message: e?.response?.data?.detail ?? "LLM 서비스를 확인해 주세요.", variant: "error" });
+      setModal({ title: "장부 등록 실패", message: e?.response?.data?.detail ?? "LLM 서비스를 확인해 주세요", variant: "error" });
     } finally { setRegistering(false); }
   };
 
   const deleteReceipt = (id: number) => {
     setModal({
       title: "인식 내역 삭제",
-      message: "이 영수증 인식 내역을 삭제하시겠습니까?\n삭제하면 복구할 수 없습니다.",
+      message: "이 영수증 인식 내역을 삭제하시겠습니까?\n삭제하면 복구할 수 없습니다",
       variant: "danger",
       showCancel: true,
       confirmLabel: "삭제",
@@ -267,15 +267,15 @@ export default function OcrPage() {
                   </div>
                 ) : (
                   <div style={{ ...fieldBox, textAlign: "center" }}>
-                    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>인식된 구조화 정보가 없습니다.</p>
-                    <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginTop: "4px" }}>원문 텍스트가 불명확하거나 지원하지 않는 형식일 수 있습니다.</p>
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>인식된 구조화 정보가 없습니다</p>
+                    <p style={{ fontSize: "12px", color: "var(--text-subtle)", marginTop: "4px" }}>원문 텍스트가 불명확하거나 지원하지 않는 형식일 수 있습니다</p>
                   </div>
                 );
               })()}
 
               {/* 장부 등록 버튼 */}
               {registerDone === selected.id ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 16px", borderRadius: "8px", backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid #22C55E" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 16px", borderRadius: "8px", backgroundColor: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.40)" }}>
                   <CheckCircle size={16} color="#22C55E" />
                   <span style={{ fontSize: "13px", fontWeight: 700, color: "#22C55E" }}>장부에 등록되었습니다</span>
                 </div>
@@ -368,7 +368,7 @@ export default function OcrPage() {
                       </div>
                     ) : (
                       <div style={{ padding: "12px", backgroundColor: "var(--bg-surface-2)", borderRadius: "8px", marginTop: "12px", textAlign: "center" }}>
-                        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>구조화된 정보를 추출할 수 없습니다.</p>
+                        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>구조화된 정보를 추출할 수 없습니다</p>
                       </div>
                     )}
                     <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
