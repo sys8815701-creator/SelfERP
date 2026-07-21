@@ -33,6 +33,34 @@ def require_manager(
     return business
 
 
+def get_my_employee(business: Business, current_user: User, db: Session) -> Employee | None:
+    """현재 로그인 사용자가 이 사업장에서 어떤 Employee 레코드에 해당하는지 조회.
+    employee 역할의 '본인 데이터만' 제한 로직 전반에서 공통으로 사용한다."""
+    return (
+        db.query(Employee)
+        .filter(Employee.business_id == business.id)
+        .filter((Employee.user_id == current_user.id) | (Employee.email == current_user.email))
+        .first()
+    )
+
+
+def _redact_if_not_self(r: EmployeeResponse, emp: Employee, role: str, my_emp: Employee | None) -> EmployeeResponse:
+    """급여·계좌·주소·생년월일·비상연락처는 admin·accountant이거나 본인 레코드일 때만 노출.
+    그 외(다른 직원이 employee 역할로 조회)에는 값을 가린다."""
+    is_self = my_emp is not None and my_emp.id == emp.id
+    if role in ("admin", "accountant") or is_self:
+        return r
+    r.base_salary = 0
+    r.bank_name = None
+    r.account_number = None
+    r.bank_holder = None
+    r.address = None
+    r.birth_date = None
+    r.emergency_name = None
+    r.emergency_phone = None
+    return r
+
+
 # ── HR 개요 ───────────────────────────────────────────────
 @router.get("/summary")
 def get_hr_summary(
@@ -226,6 +254,8 @@ def list_employees(
     status: str = "재직",
     dept_id: int = None,
     business: Business = Depends(get_current_business),
+    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
     q = db.query(Employee).filter(Employee.business_id == business.id)
@@ -234,11 +264,13 @@ def list_employees(
     if dept_id:
         q = q.filter(Employee.department_id == dept_id)
     employees = q.order_by(Employee.hire_date.desc()).all()
+    my_emp = get_my_employee(business, current_user, db) if role not in ("admin", "accountant") else None
     result = []
     for e in employees:
         r = EmployeeResponse.from_orm(e)
         r.department_name = e.department.name if e.department else None
         r.position_name   = e.position.name   if e.position   else None
+        r = _redact_if_not_self(r, e, role, my_emp)
         result.append(r)
     return result
 
@@ -263,6 +295,8 @@ def create_employee(
 def get_employee(
     emp_id: int,
     business: Business = Depends(get_current_business),
+    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
     emp = db.query(Employee).filter(
@@ -273,6 +307,8 @@ def get_employee(
     r = EmployeeResponse.from_orm(emp)
     r.department_name = emp.department.name if emp.department else None
     r.position_name   = emp.position.name   if emp.position   else None
+    my_emp = get_my_employee(business, current_user, db) if role not in ("admin", "accountant") else None
+    r = _redact_if_not_self(r, emp, role, my_emp)
     return r
 
 
@@ -325,11 +361,16 @@ def delete_employee(
 def list_contracts(
     contract_type: str = None,
     business: Business = Depends(get_current_business),
+    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
     q = db.query(Contract).filter(Contract.business_id == business.id)
     if contract_type:
         q = q.filter(Contract.contract_type == contract_type)
+    if role not in ("admin", "accountant"):
+        my_emp = get_my_employee(business, current_user, db)
+        q = q.filter(Contract.employee_id == (my_emp.id if my_emp else -1))
     contracts = q.order_by(Contract.created_at.desc()).all()
     result = []
     for c in contracts:
@@ -396,12 +437,18 @@ def list_leaves(
     status: str = None,
     employee_id: int = None,
     business: Business = Depends(get_current_business),
+    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
     q = db.query(Leave).filter(Leave.business_id == business.id)
     if status:
         q = q.filter(Leave.status == status)
-    if employee_id:
+    if role not in ("admin", "accountant"):
+        # employee 역할은 employee_id를 지정해도 무시하고 항상 본인 기록만 본다
+        my_emp = get_my_employee(business, current_user, db)
+        q = q.filter(Leave.employee_id == (my_emp.id if my_emp else -1))
+    elif employee_id:
         q = q.filter(Leave.employee_id == employee_id)
     leaves = q.order_by(Leave.start_date.desc()).all()
     result = []
@@ -415,15 +462,25 @@ def list_leaves(
 @router.post("/leaves", response_model=LeaveResponse, status_code=201)
 def create_leave(
     data: LeaveCreate,
-    business: Business = Depends(require_manager),
+    business: Business = Depends(get_current_business),
+    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
+    target_employee_id = data.employee_id
+    if role not in ("admin", "accountant"):
+        # employee 역할은 본인 명의로만 휴가를 신청할 수 있다 — 요청 본문의
+        # employee_id는 무시하고 본인 Employee 레코드로 고정한다
+        my_emp = get_my_employee(business, current_user, db)
+        if not my_emp:
+            raise HTTPException(status_code=403, detail="이 사업장의 직원 정보를 찾을 수 없습니다.")
+        target_employee_id = my_emp.id
     emp = db.query(Employee).filter(
-        Employee.id == data.employee_id, Employee.business_id == business.id
+        Employee.id == target_employee_id, Employee.business_id == business.id
     ).first()
     if not emp:
         raise HTTPException(status_code=404, detail="직원을 찾을 수 없습니다.")
-    leave = Leave(**data.dict(), business_id=business.id)
+    leave = Leave(**{**data.dict(), "employee_id": target_employee_id}, business_id=business.id)
     db.add(leave)
     db.commit()
     db.refresh(leave)

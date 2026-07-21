@@ -78,7 +78,7 @@ export default function LeavePage() {
   };
 
   const saveLeave = async () => {
-    if (!form.employee_id) { setError("직원을 선택하세요"); return; }
+    if (canWrite(role) && !form.employee_id) { setError("직원을 선택하세요"); return; }
     if (!form.start_date || !form.end_date) { setError("날짜를 입력하세요"); return; }
     setSaving(true); setError("");
     try {
@@ -121,12 +121,10 @@ export default function LeavePage() {
               대기 {pending}건
             </span>
           )}
-          {canWrite(role) && (
-            <button onClick={openCreate}
-              style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-              + 휴가 신청
-            </button>
-          )}
+          <button onClick={openCreate}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 휴가 신청
+          </button>
         </div>
       </div>
 
@@ -148,11 +146,9 @@ export default function LeavePage() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
           <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◐</p>
           <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>휴가 신청 내역이 없습니다</p>
-          {canWrite(role) && (
-            <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
-              첫 번째 휴가 신청
-            </button>
-          )}
+          <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
+            첫 번째 휴가 신청
+          </button>
         </div>
       ) : (
         <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", boxShadow: "var(--shadow)", overflow: "hidden" }}>
@@ -217,12 +213,18 @@ export default function LeavePage() {
           <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "16px", padding: "28px", width: "440px", border: "1px solid var(--border)" }}>
             <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "20px" }}>{editingLeave ? "휴가 수정" : "휴가 신청"}</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div><label style={labelStyle}>직원 *</label>
-                <select style={inputStyle} value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))}>
-                  <option value="">직원 선택</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </select>
-              </div>
+              {canWrite(role) ? (
+                <div><label style={labelStyle}>직원 *</label>
+                  <select style={inputStyle} value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))}>
+                    <option value="">직원 선택</option>
+                    {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div><label style={labelStyle}>신청자</label>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", padding: "9px 12px", backgroundColor: "var(--bg-surface-2)", borderRadius: "8px" }}>본인 명의로 신청됩니다</p>
+                </div>
+              )}
               <div><label style={labelStyle}>휴가 유형</label>
                 <select style={inputStyle} value={form.leave_type} onChange={e => {
                   const t = e.target.value;

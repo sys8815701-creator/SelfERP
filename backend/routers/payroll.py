@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from core.database import get_db
-from core.deps import get_current_business, get_current_role
+from core.deps import get_current_business, get_current_role, get_current_user
 from models.business import Business
+from models.user import User
 from models.employee import Employee
 from models.payroll import Payroll, Severance
 from pydantic import BaseModel
@@ -70,12 +71,14 @@ class SeveranceCreate(BaseModel):
     note: Optional[str] = None
 
 
-# ── Payroll 목록 ─────────────────────────────────────
+# ── Payroll 목록 (본인 명세서는 employee 역할도 조회 가능, 그 외는 admin·accountant만) ──
 @router.get("/")
 def list_payrolls(
     year: int = None, month: int = None,
     employee_id: int = None,
-    business: Business = Depends(require_admin),
+    business: Business = Depends(get_current_business),
+    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
     db: Session = Depends(get_db),
 ):
     from datetime import date as dt
@@ -87,7 +90,16 @@ def list_payrolls(
         Payroll.pay_year == y,
         Payroll.pay_month == m,
     )
-    if employee_id:
+    if role not in ("admin", "accountant"):
+        # employee 역할은 employee_id를 지정해도 무시하고 본인 명세서만 조회한다
+        my_emp = (
+            db.query(Employee)
+            .filter(Employee.business_id == business.id)
+            .filter((Employee.user_id == current_user.id) | (Employee.email == current_user.email))
+            .first()
+        )
+        q = q.filter(Payroll.employee_id == (my_emp.id if my_emp else -1))
+    elif employee_id:
         q = q.filter(Payroll.employee_id == employee_id)
     payrolls = q.all()
     result = []

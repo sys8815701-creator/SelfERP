@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
-import { useRole } from "@/hooks/useRole";
+import { useRole, canWrite } from "@/hooks/useRole";
 
 interface Employee { id: number; name: string; base_salary: number; }
 interface PayrollRecord {
@@ -168,15 +168,6 @@ export default function PayrollPage() {
   const deductions = Number(form.national_pension) + Number(form.health_insurance) + Number(form.employment_insurance) + Number(form.income_tax) + Number(form.local_income_tax) + Number(form.other_deduction) + Number(form.advance_payment);
   const net = gross - deductions;
 
-  if (role !== "admin") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: "10px", color: "var(--text-muted)" }}>
-        <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>접근 권한이 없습니다</p>
-        <p style={{ fontSize: "13px" }}>급여 정산은 사업장 관리자(admin)만 확인할 수 있습니다.</p>
-      </div>
-    );
-  }
-
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
@@ -188,7 +179,7 @@ export default function PayrollPage() {
 
       {/* 탭 */}
       <div style={{ display: "flex", gap: "4px", marginBottom: "20px", backgroundColor: "var(--bg-surface-2)", padding: "4px", borderRadius: "10px", width: "fit-content" }}>
-        {[["payroll", "급여명세서"], ["severance", "퇴직금 정산"]] .map(([k, l]) => (
+        {(canWrite(role) ? [["payroll", "급여명세서"], ["severance", "퇴직금 정산"]] : [["payroll", "급여명세서"]]).map(([k, l]) => (
           <button key={k} onClick={() => setActiveTab(k as any)}
             style={{ padding: "7px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 600, transition: "all 0.15s", backgroundColor: activeTab === k ? "var(--bg-surface)" : "transparent", color: activeTab === k ? "var(--text-primary)" : "var(--text-muted)", boxShadow: activeTab === k ? "0 1px 4px rgba(0,0,0,0.1)" : "none" }}>
             {l}
@@ -224,10 +215,12 @@ export default function PayrollPage() {
                 </div>
               </div>
             )}
-            <button onClick={openCreate}
-              style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-              + 급여명세서 추가
-            </button>
+            {canWrite(role) && (
+              <button onClick={openCreate}
+                style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                + 급여명세서 추가
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -236,7 +229,9 @@ export default function PayrollPage() {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
               <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◒</p>
               <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>{year}년 {month}월 급여명세서가 없습니다</p>
-              <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>급여명세서 생성</button>
+              {canWrite(role) && (
+                <button onClick={openCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>급여명세서 생성</button>
+              )}
             </div>
           ) : (
             <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
@@ -270,16 +265,22 @@ export default function PayrollPage() {
                           {p.advance_payment > 0 ? `-${fmt(Math.round(p.advance_payment))}원` : "—"}
                         </td>
                         <td style={{ padding: "13px 14px" }}>
-                          <select value={p.status} onChange={e => updateStatus(p.id, e.target.value)}
-                            style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: sc.border, borderRadius: "99px", padding: "4px 10px", cursor: "pointer", outline: "none" }}>
-                            {["작성중", "확정", "지급완료"].map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
+                          {canWrite(role) ? (
+                            <select value={p.status} onChange={e => updateStatus(p.id, e.target.value)}
+                              style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: sc.border, borderRadius: "99px", padding: "4px 10px", cursor: "pointer", outline: "none" }}>
+                              {["작성중", "확정", "지급완료"].map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          ) : (
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: sc.text, backgroundColor: sc.bg, border: sc.border, borderRadius: "99px", padding: "4px 10px" }}>{p.status}</span>
+                          )}
                         </td>
                         <td style={{ padding: "13px 14px" }}>
-                          <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                            <button onClick={() => openEdit(p)} style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>수정</button>
-                            <button onClick={() => deletePayroll(p.id)} style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.40)", backgroundColor: "rgba(239,68,68,0.12)", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>삭제</button>
-                          </div>
+                          {canWrite(role) && (
+                            <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                              <button onClick={() => openEdit(p)} style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>수정</button>
+                              <button onClick={() => deletePayroll(p.id)} style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.40)", backgroundColor: "rgba(239,68,68,0.12)", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>삭제</button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
