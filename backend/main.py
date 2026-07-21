@@ -24,6 +24,7 @@ from routers import distribution as distribution_router
 from routers import export_csv as export_router
 from routers import pending_registration as pending_reg_router
 from routers import settings as settings_router
+from routers import platform as platform_router
 from sqlalchemy import text
 
 app = FastAPI(title="Accounting Platform API")
@@ -133,6 +134,7 @@ app.include_router(distribution_router.router)
 app.include_router(export_router.router)
 app.include_router(pending_reg_router.router)
 app.include_router(settings_router.router)
+app.include_router(platform_router.router)
 
 @app.get("/")
 def root():

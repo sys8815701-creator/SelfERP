@@ -76,6 +76,10 @@ const settingMenu = [
   { label: "도움말",   href: "/dashboard/help",     icon: "❓" },
 ];
 
+const developerMenu = [
+  { label: "개발자 콘솔", href: "/dashboard/developer", icon: "⬡" },
+];
+
 const MENU_ACCESS: Record<string, { manager: boolean; viewer: boolean }> = {
   "/dashboard/hr":                      { manager: true,  viewer: true  },
   "/dashboard/hr/employees":            { manager: true,  viewer: true  },
@@ -167,6 +171,7 @@ const canAccess = (
 };
 
 const getSectionForPath = (path: string): string => {
+  if (path.startsWith("/dashboard/developer"))  return "developer";
   if (path.startsWith("/dashboard/integrated")) return "integrated";
   if (path.startsWith("/dashboard/hr"))          return "hr";
   if (path.startsWith("/dashboard/production"))  return "production";
@@ -264,8 +269,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
      메뉴로 나와버려서 서로 달라 hydration mismatch(콘솔 에러 + 트리 재생성)가
      발생한다 — 사이드바 메뉴 항목이 서버/클라이언트에서 다르게 보이던 원인. */
   const [userRole, setUserRole] = useState<string>("employee");
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   useEffect(() => {
-    try { setUserRole(JSON.parse(localStorage.getItem("user") || "{}").role || "employee"); }
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      setUserRole(u.role || "employee");
+      setIsPlatformAdmin(Boolean(u.is_platform_admin));
+    }
     catch { /* ignore */ }
   }, []);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -461,12 +471,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     }).catch(() => { /* 설정 없으면 기본값 MENU_ACCESS 사용 */ });
 
-    /* DB와 동기화: 사업장 없으면 등록 페이지를 메인으로, 있으면 대시보드 */
+    /* DB와 동기화: 사업장 없으면 등록 페이지를 메인으로, 있으면 대시보드.
+       단, 플랫폼 관리자는 사업장 없이도 개발자 콘솔에 접근해야 하므로 예외 처리 */
     api.get("/api/business/").then(res => {
       const list: any[] = res.data;
       if (list.length === 0) {
         setBizReady(true);
-        if (!pathname.startsWith("/dashboard/business")) router.push("/dashboard/business");
+        const isPlatformAdmin = (() => {
+          try { return Boolean(JSON.parse(localStorage.getItem("user") || "{}").is_platform_admin); }
+          catch { return false; }
+        })();
+        if (!isPlatformAdmin && !pathname.startsWith("/dashboard/business")) router.push("/dashboard/business");
         return;
       }
       const storedId = Number(localStorage.getItem("activeBizId"));
@@ -662,6 +677,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* 메뉴 */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+
+          {/* 개발자 콘솔 (플랫폼 관리자 전용) */}
+          {isPlatformAdmin && (<>
+            <SectionHeader label="플랫폼 운영" section="developer" openSections={openSections} setOpenSections={setOpenSections} />
+            {openSections.developer !== false && developerMenu.map(item => <MenuItem key={item.href} item={item} pathname={pathname} favorites={favorites} toggleFavorite={toggleFavorite} />)}
+          </>)}
 
           {/* 즐겨찾기 */}
           {favoriteItems.length > 0 && (

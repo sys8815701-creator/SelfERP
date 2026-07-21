@@ -33,3 +33,20 @@ export const canWrite = (role: UserRole): boolean =>
 
 export const canDelete = (role: UserRole): boolean =>
   role === "admin";
+
+export function useIsPlatformAdmin(): boolean {
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try { return Boolean(JSON.parse(localStorage.getItem("user") || "{}").is_platform_admin); }
+      catch { return false; }
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    try { setIsPlatformAdmin(Boolean(JSON.parse(localStorage.getItem("user") || "{}").is_platform_admin)); }
+    catch { setIsPlatformAdmin(false); }
+  }, []);
+
+  return isPlatformAdmin;
+}
