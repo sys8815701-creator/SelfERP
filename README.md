@@ -554,6 +554,22 @@ npm run dev
 
 ---
 
+## 예시 계정
+
+각 사업장의 관리자 · 매니저 · 일반 사용자 화면을 역할별로 바로 확인할 수 있도록 아래 계정을 제공합니다. 개발자 계정은 특정 사업장 소속과 무관하게 전체 사업장 현황을 관리하는 플랫폼 전용 계정입니다.
+
+| 구분 | 역할 | 아이디 | 비밀번호 |
+|------|------|--------|----------|
+| 플랫폼 | 개발자 | dev@selferp.io | developer123 |
+| 행복한 베이커리 | 관리자 | kim@bookkeep.ai | password123 |
+| 행복한 베이커리 | 매니저 | seoyeon@bakery.kr | password123 |
+| 행복한 베이커리 | 일반 사용자 | haneul@bakery.kr | password123 |
+| 정성반찬 | 관리자 | park@jeongsung.kr | password123 |
+| 정성반찬 | 매니저 | kim.accountant@jeongsung.kr | password123 |
+| 정성반찬 | 일반 사용자 | lee.staff@jeongsung.kr | password123 |
+
+---
+
 ## 환경변수
 
 | 변수 | 위치 | 설명 |
