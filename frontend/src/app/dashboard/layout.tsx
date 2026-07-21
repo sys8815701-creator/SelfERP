@@ -81,13 +81,13 @@ const developerMenu = [
 ];
 
 const MENU_ACCESS: Record<string, { manager: boolean; viewer: boolean }> = {
-  "/dashboard/hr":                      { manager: true,  viewer: true  },
+  "/dashboard/hr":                      { manager: true,  viewer: false },
   "/dashboard/hr/employees":            { manager: true,  viewer: false },
   "/dashboard/hr/departments":          { manager: true,  viewer: false },
   "/dashboard/hr/contracts":            { manager: true,  viewer: true  },
   "/dashboard/hr/leave":                { manager: true,  viewer: true  },
   "/dashboard/hr/payroll":              { manager: false, viewer: false },
-  "/dashboard/accounting":              { manager: true,  viewer: true  },
+  "/dashboard/accounting":              { manager: true,  viewer: false },
   "/dashboard/ledger":                  { manager: true,  viewer: false },
   "/dashboard/ocr":                     { manager: true,  viewer: true  },
   "/dashboard/card":                    { manager: true,  viewer: false },
@@ -98,7 +98,7 @@ const MENU_ACCESS: Record<string, { manager: boolean; viewer: boolean }> = {
   "/dashboard/accounting/tax-invoice":  { manager: true,  viewer: false },
   "/dashboard/accounting/estimates":    { manager: true,  viewer: false },
   "/dashboard/accounting/budget":       { manager: true,  viewer: false },
-  "/dashboard/production":              { manager: true,  viewer: true  },
+  "/dashboard/production":              { manager: true,  viewer: false },
   "/dashboard/production/items":        { manager: true,  viewer: true  },
   "/dashboard/production/bom":          { manager: true,  viewer: false },
   "/dashboard/production/orders":       { manager: true,  viewer: true  },
@@ -107,7 +107,7 @@ const MENU_ACCESS: Record<string, { manager: boolean; viewer: boolean }> = {
   "/dashboard/production/cost":         { manager: false, viewer: false },
   "/dashboard/production/audit":        { manager: true,  viewer: true  },
   "/dashboard/production/efficiency":   { manager: true,  viewer: false },
-  "/dashboard/distribution":            { manager: true,  viewer: true  },
+  "/dashboard/distribution":            { manager: true,  viewer: false },
   "/dashboard/distribution/orders":     { manager: true,  viewer: true  },
   "/dashboard/distribution/deliveries": { manager: true,  viewer: true  },
   "/dashboard/distribution/vehicles":   { manager: true,  viewer: false },
