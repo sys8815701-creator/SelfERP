@@ -118,27 +118,34 @@ export default function EmployeesPage() {
     setError(""); setShowModal(true);
   };
 
-  const saveEmployee = async () => {
+  const saveEmployee = () => {
     if (!form.name.trim()) { setError("이름을 입력하세요"); return; }
     if (!form.hire_date)   { setError("입사일을 입력하세요"); return; }
-    setSaving(true); setError("");
-    try {
-      const payload = {
-        ...form,
-        department_id: form.department_id ? Number(form.department_id) : null,
-        position_id:   form.position_id   ? Number(form.position_id)   : null,
-        resign_date:   form.resign_date || null,
-        birth_date:    form.birth_date  || null,
-        gender:        form.gender      || null,
-      };
-      if (editingEmp) await api.put(`/api/hr/employees/${editingEmp.id}`, payload, { headers: bizHeaders() });
-      else await api.post("/api/hr/employees", payload, { headers: bizHeaders() });
-      setShowModal(false);
-      fetchAll();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "저장에 실패했습니다");
-    }
-    setSaving(false);
+    setError("");
+    setModal({
+      title: editingEmp ? "직원 수정" : "직원 추가", variant: "info", showCancel: true,
+      confirmLabel: editingEmp ? "수정" : "등록",
+      message: editingEmp ? "직원 정보를 수정하시겠습니까?" : "직원을 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const payload = {
+            ...form,
+            department_id: form.department_id ? Number(form.department_id) : null,
+            position_id:   form.position_id   ? Number(form.position_id)   : null,
+            resign_date:   form.resign_date || null,
+            birth_date:    form.birth_date  || null,
+            gender:        form.gender      || null,
+          };
+          if (editingEmp) await api.put(`/api/hr/employees/${editingEmp.id}`, payload, { headers: bizHeaders() });
+          else await api.post("/api/hr/employees", payload, { headers: bizHeaders() });
+          setShowModal(false);
+          fetchAll();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail || "저장에 실패했습니다", variant: "error" });
+        } finally { setSaving(false); }
+      },
+    });
   };
 
   const deleteEmployee = (id: number) => {

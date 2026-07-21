@@ -96,7 +96,7 @@ export default function PayrollPage() {
       const res = await api.post(`/api/hr/payroll/calculate?employee_id=${empId}`, {}, { headers: bizHeaders() });
       const d = res.data;
       setForm(f => ({ ...f, base_salary: d.base_salary, national_pension: d.national_pension, health_insurance: d.health_insurance, employment_insurance: d.employment_insurance, income_tax: d.income_tax, local_income_tax: d.local_income_tax }));
-    } catch {}
+    } catch (e: any) { setModal({ message: e?.response?.data?.detail || "자동 계산에 실패했습니다", variant: "error" }); }
     setCalculating(false);
   };
 
@@ -107,16 +107,24 @@ export default function PayrollPage() {
     setError(""); setShowModal(true);
   };
 
-  const savePayroll = async () => {
+  const savePayroll = () => {
     if (!form.employee_id) { setError("직원을 선택하세요"); return; }
-    setSaving(true); setError("");
-    try {
-      const payload = { ...form, employee_id: Number(form.employee_id), pay_year: year, pay_month: month };
-      if (editingId) await api.put(`/api/hr/payroll/${editingId}`, payload, { headers: bizHeaders() });
-      else await api.post("/api/hr/payroll/", payload, { headers: bizHeaders() });
-      setShowModal(false); fetchAll();
-    } catch (e: any) { setError(e?.response?.data?.detail || "저장 실패"); }
-    setSaving(false);
+    setError("");
+    setModal({
+      title: editingId ? "급여명세서 수정" : "급여명세서 추가", variant: "info", showCancel: true,
+      confirmLabel: editingId ? "수정" : "추가",
+      message: editingId ? "급여명세서를 수정하시겠습니까?" : "급여명세서를 추가하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const payload = { ...form, employee_id: Number(form.employee_id), pay_year: year, pay_month: month };
+          if (editingId) await api.put(`/api/hr/payroll/${editingId}`, payload, { headers: bizHeaders() });
+          else await api.post("/api/hr/payroll/", payload, { headers: bizHeaders() });
+          setShowModal(false); fetchAll();
+        } catch (e: any) { setModal({ message: e?.response?.data?.detail || "저장 실패", variant: "error" }); }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const updateStatus = async (id: number, status: string) => {
@@ -141,16 +149,22 @@ export default function PayrollPage() {
     } catch (e: any) { setModal({ message: e?.response?.data?.detail || "계산 실패", variant: "error" }); }
   };
 
-  const saveSeverance = async () => {
+  const saveSeverance = () => {
     if (!sevResult) return;
-    setSevSaving(true);
-    try {
-      await api.post("/api/hr/payroll/severance/", { employee_id: Number(sevForm.employee_id), resign_date: sevForm.resign_date, avg_wage_3m: sevResult.avg_wage_monthly, note: sevForm.note }, { headers: bizHeaders() });
-      setModal({ message: "퇴직금 정산이 완료되었습니다", variant: "info" });
-      setSevResult(null);
-      setSevForm({ employee_id: "", resign_date: "", avg_wage_3m: 0, note: "" });
-    } catch (e: any) { setModal({ message: e?.response?.data?.detail || "저장 실패", variant: "error" }); }
-    setSevSaving(false);
+    setModal({
+      title: "퇴직금 정산 확정", variant: "info", showCancel: true, confirmLabel: "확정",
+      message: `${sevResult.employee_name}님의 퇴직금 ${fmt(Math.round(sevResult.severance_pay))}원을 정산 확정하시겠습니까?`,
+      onConfirm: async () => {
+        setSevSaving(true);
+        try {
+          await api.post("/api/hr/payroll/severance/", { employee_id: Number(sevForm.employee_id), resign_date: sevForm.resign_date, avg_wage_3m: sevResult.avg_wage_monthly, note: sevForm.note }, { headers: bizHeaders() });
+          setModal({ message: "퇴직금 정산이 완료되었습니다", variant: "info" });
+          setSevResult(null);
+          setSevForm({ employee_id: "", resign_date: "", avg_wage_3m: 0, note: "" });
+        } catch (e: any) { setModal({ message: e?.response?.data?.detail || "저장 실패", variant: "error" }); }
+        finally { setSevSaving(false); }
+      },
+    });
   };
 
   const totalGross = payrolls.reduce((s, p) => s + p.gross_pay, 0);

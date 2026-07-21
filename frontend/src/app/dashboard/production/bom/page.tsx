@@ -42,26 +42,34 @@ export default function BomPage() {
     setShowModal(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.product_id) return;
-    const validLines = lines.filter(l => l.item_id && l.quantity);
-    setSaving(true);
-    try {
-      await api.post("/api/production/boms", {
-        product_id: Number(form.product_id),
-        version:    form.version,
-        description: form.description,
-        lines: validLines.map(l => ({
-          item_id:  Number(l.item_id),
-          quantity: parseFloat(l.quantity),
-          unit:     l.unit,
-          note:     l.note,
-        })),
-      }, { headers: headers() });
-      setShowModal(false);
-      await load();
-    } catch { /* ignore */ }
-    finally { setSaving(false); }
+    setModal({
+      title: "BOM 등록", variant: "info", showCancel: true, confirmLabel: "등록",
+      message: "자재명세서를 등록하시겠습니까?",
+      onConfirm: async () => {
+        const validLines = lines.filter(l => l.item_id && l.quantity);
+        setSaving(true);
+        try {
+          await api.post("/api/production/boms", {
+            product_id: Number(form.product_id),
+            version:    form.version,
+            description: form.description,
+            lines: validLines.map(l => ({
+              item_id:  Number(l.item_id),
+              quantity: parseFloat(l.quantity),
+              unit:     l.unit,
+              note:     l.note,
+            })),
+          }, { headers: headers() });
+          setShowModal(false);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다", variant: "error" });
+        }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const handleDelete = (id: number) => {
@@ -69,7 +77,7 @@ export default function BomPage() {
       onConfirm: async () => {
         setDeleting(true);
         try { await api.delete(`/api/production/boms/${id}`, { headers: headers() }); setSelected(null); await load(); }
-        catch { /* ignore */ }
+        catch (e: any) { setModal({ message: e?.response?.data?.detail ?? "삭제에 실패했습니다", variant: "error" }); }
         finally { setDeleting(false); }
       } });
   };

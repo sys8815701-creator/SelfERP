@@ -73,19 +73,26 @@ export default function DepartmentsPage() {
     setDeptForm({ name: d.name, code: d.code || "", description: d.description || "", parent_id: d.parent_id });
     setError(""); setShowDeptModal(true);
   };
-  const saveDept = async () => {
+  const saveDept = () => {
     if (!deptForm.name.trim()) { setError("부서명을 입력하세요"); return; }
-    setSaving(true); setError("");
-    try {
-      const payload = { name: deptForm.name.trim(), code: deptForm.code || null, description: deptForm.description || null, parent_id: deptForm.parent_id };
-      if (editingDept) await api.put(`/api/hr/departments/${editingDept.id}`, payload, { headers: bizHeaders() });
-      else await api.post("/api/hr/departments", payload, { headers: bizHeaders() });
-      setShowDeptModal(false);
-      fetchAll();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "저장에 실패했습니다");
-    }
-    setSaving(false);
+    setError("");
+    setModal({
+      title: editingDept ? "부서 수정" : "부서 추가", variant: "info", showCancel: true,
+      confirmLabel: editingDept ? "수정" : "추가",
+      message: editingDept ? "부서 정보를 수정하시겠습니까?" : "부서를 추가하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const payload = { name: deptForm.name.trim(), code: deptForm.code || null, description: deptForm.description || null, parent_id: deptForm.parent_id };
+          if (editingDept) await api.put(`/api/hr/departments/${editingDept.id}`, payload, { headers: bizHeaders() });
+          else await api.post("/api/hr/departments", payload, { headers: bizHeaders() });
+          setShowDeptModal(false);
+          fetchAll();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail || "저장에 실패했습니다", variant: "error" });
+        } finally { setSaving(false); }
+      },
+    });
   };
   const deleteDept = (id: number) => {
     setModal({ title: "삭제 확인", message: "부서를 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",
@@ -102,19 +109,26 @@ export default function DepartmentsPage() {
     setPosForm({ name: p.name, level: p.level, description: p.description || "" });
     setError(""); setShowPosModal(true);
   };
-  const savePos = async () => {
+  const savePos = () => {
     if (!posForm.name.trim()) { setError("직급명을 입력하세요"); return; }
-    setSaving(true); setError("");
-    try {
-      const payload = { name: posForm.name.trim(), level: posForm.level, description: posForm.description || null };
-      if (editingPos) await api.put(`/api/hr/positions/${editingPos.id}`, payload, { headers: bizHeaders() });
-      else await api.post("/api/hr/positions", payload, { headers: bizHeaders() });
-      setShowPosModal(false);
-      fetchAll();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "저장에 실패했습니다");
-    }
-    setSaving(false);
+    setError("");
+    setModal({
+      title: editingPos ? "직급 수정" : "직급 추가", variant: "info", showCancel: true,
+      confirmLabel: editingPos ? "수정" : "추가",
+      message: editingPos ? "직급 정보를 수정하시겠습니까?" : "직급을 추가하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const payload = { name: posForm.name.trim(), level: posForm.level, description: posForm.description || null };
+          if (editingPos) await api.put(`/api/hr/positions/${editingPos.id}`, payload, { headers: bizHeaders() });
+          else await api.post("/api/hr/positions", payload, { headers: bizHeaders() });
+          setShowPosModal(false);
+          fetchAll();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail || "저장에 실패했습니다", variant: "error" });
+        } finally { setSaving(false); }
+      },
+    });
   };
   const deletePos = (id: number) => {
     setModal({ title: "삭제 확인", message: "직급을 삭제하시겠습니까?", variant: "danger", showCancel: true, confirmLabel: "삭제",

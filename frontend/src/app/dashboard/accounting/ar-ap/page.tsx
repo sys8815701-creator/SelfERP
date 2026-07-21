@@ -107,29 +107,36 @@ export default function ArApPage() {
     setShowModal(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.title || !form.amount || !form.issue_date || !form.due_date) return;
-    setSaving(true);
-    try {
-      const h = { "X-Business-Id": bizId() };
-      const body = {
-        ...form,
-        vendor_id:   form.vendor_id ? Number(form.vendor_id) : null,
-        amount:      parseFloat(form.amount),
-        paid_amount: parseFloat(form.paid_amount) || 0,
-      };
-      const path = tab === "ar" ? "/api/accounting/ar/" : "/api/accounting/ap/";
-      if (editing) {
-        await api.put(`${path}${editing.id}`, body, { headers: h });
-      } else {
-        await api.post(path, body, { headers: h });
-      }
-      setShowModal(false);
-      await loadData();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
-    }
-    finally { setSaving(false); }
+    setModal({
+      title: editing ? "수정" : tab === "ar" ? "미수금 등록" : "미지급금 등록", variant: "info", showCancel: true,
+      confirmLabel: editing ? "수정" : "등록",
+      message: editing ? "내용을 수정하시겠습니까?" : "등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const h = { "X-Business-Id": bizId() };
+          const body = {
+            ...form,
+            vendor_id:   form.vendor_id ? Number(form.vendor_id) : null,
+            amount:      parseFloat(form.amount),
+            paid_amount: parseFloat(form.paid_amount) || 0,
+          };
+          const path = tab === "ar" ? "/api/accounting/ar/" : "/api/accounting/ap/";
+          if (editing) {
+            await api.put(`${path}${editing.id}`, body, { headers: h });
+          } else {
+            await api.post(path, body, { headers: h });
+          }
+          setShowModal(false);
+          await loadData();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+        }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const handleDelete = (id: number) => {

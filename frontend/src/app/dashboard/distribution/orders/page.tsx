@@ -56,28 +56,34 @@ export default function SalesOrdersPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const validLines = lines.filter(l => l.item_name && l.quantity);
     if (!validLines.length) return;
-    setSaving(true);
-    try {
-      await api.post("/api/distribution/orders", {
-        vendor_id:  form.vendor_id ? Number(form.vendor_id) : null,
-        order_no:   form.order_no,
-        order_date: form.order_date || null,
-        due_date:   form.due_date || null,
-        note:       form.note,
-        items: validLines.map(l => ({
-          item_name:  l.item_name,
-          quantity:   parseFloat(l.quantity),
-          unit_price: parseFloat(l.unit_price) || 0,
-          note:       l.note,
-        })),
-      }, { headers: h() });
-      setShowModal(false); setSelected(null); await load();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
-    } finally { setSaving(false); }
+    setModal({
+      title: "수주 등록", variant: "info", showCancel: true, confirmLabel: "등록",
+      message: "수주를 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          await api.post("/api/distribution/orders", {
+            vendor_id:  form.vendor_id ? Number(form.vendor_id) : null,
+            order_no:   form.order_no,
+            order_date: form.order_date || null,
+            due_date:   form.due_date || null,
+            note:       form.note,
+            items: validLines.map(l => ({
+              item_name:  l.item_name,
+              quantity:   parseFloat(l.quantity),
+              unit_price: parseFloat(l.unit_price) || 0,
+              note:       l.note,
+            })),
+          }, { headers: h() });
+          setShowModal(false); setSelected(null); await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+        } finally { setSaving(false); }
+      },
+    });
   };
 
   const handleStatusChange = async (id: number, status: string) => {

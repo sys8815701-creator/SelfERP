@@ -89,24 +89,30 @@ export default function BudgetPage() {
     setShowModal(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.category || !form.amount) return;
-    setSaving(true);
-    try {
-      const h = { "X-Business-Id": bizId() };
-      const body = { ...form, amount: parseFloat(form.amount) };
-      if (editingId) {
-        await api.put(`/api/accounting/budget/${editingId}`, { amount: body.amount, note: body.note }, { headers: h });
-      } else {
-        await api.post("/api/accounting/budget/", body, { headers: h }).catch(e => {
-          if (e.response?.status === 400) setModal({ message: e.response.data.detail, variant: "error" });
-          throw e;
-        });
-      }
-      setShowModal(false);
-      await load();
-    } catch { /* ignore */ }
-    finally { setSaving(false); }
+    setModal({
+      title: editingId ? "예산 수정" : "예산 항목 등록", variant: "info", showCancel: true,
+      confirmLabel: editingId ? "수정" : "등록",
+      message: editingId ? "예산 항목을 수정하시겠습니까?" : "예산 항목을 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const h = { "X-Business-Id": bizId() };
+          const body = { ...form, amount: parseFloat(form.amount) };
+          if (editingId) {
+            await api.put(`/api/accounting/budget/${editingId}`, { amount: body.amount, note: body.note }, { headers: h });
+          } else {
+            await api.post("/api/accounting/budget/", body, { headers: h });
+          }
+          setShowModal(false);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다", variant: "error" });
+        }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const handleDelete = (id: number) => {

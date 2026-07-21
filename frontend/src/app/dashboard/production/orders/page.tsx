@@ -51,23 +51,29 @@ export default function ProductionOrdersPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.product_id || !form.planned_qty) return;
-    setSaving(true);
-    try {
-      const body = {
-        ...form,
-        product_id: Number(form.product_id),
-        bom_id:     form.bom_id ? Number(form.bom_id) : null,
-        planned_qty: parseFloat(form.planned_qty),
-      };
-      await api.post("/api/production/orders", body, { headers: { "X-Business-Id": bizId() } });
-      setShowModal(false);
-      await load();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
-    }
-    finally { setSaving(false); }
+    setModal({
+      title: "생산 지시", variant: "info", showCancel: true, confirmLabel: "지시",
+      message: "생산 지시서를 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const body = {
+            ...form,
+            product_id: Number(form.product_id),
+            bom_id:     form.bom_id ? Number(form.bom_id) : null,
+            planned_qty: parseFloat(form.planned_qty),
+          };
+          await api.post("/api/production/orders", body, { headers: { "X-Business-Id": bizId() } });
+          setShowModal(false);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+        }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const handleStatusChange = async (id: number, status: string) => {
@@ -84,23 +90,29 @@ export default function ProductionOrdersPage() {
     setShowResultModal(true);
   };
 
-  const handleSaveResult = async () => {
+  const handleSaveResult = () => {
     if (!resultForm.completed_qty || !resultForm.completed_date) return;
-    setSavingResult(true);
-    try {
-      await api.post("/api/production/results", {
-        order_id: resultForm.order_id,
-        completed_qty: parseFloat(resultForm.completed_qty),
-        defect_qty: parseFloat(resultForm.defect_qty) || 0,
-        completed_date: resultForm.completed_date,
-        worker_note: resultForm.worker_note,
-      }, { headers: { "X-Business-Id": bizId() } });
-      setShowResultModal(false);
-      await load();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "실적 등록에 실패했습니다.", variant: "error" });
-    }
-    finally { setSavingResult(false); }
+    setModal({
+      title: "생산 실적 등록", variant: "info", showCancel: true, confirmLabel: "등록",
+      message: "생산 실적을 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSavingResult(true);
+        try {
+          await api.post("/api/production/results", {
+            order_id: resultForm.order_id,
+            completed_qty: parseFloat(resultForm.completed_qty),
+            defect_qty: parseFloat(resultForm.defect_qty) || 0,
+            completed_date: resultForm.completed_date,
+            worker_note: resultForm.worker_note,
+          }, { headers: { "X-Business-Id": bizId() } });
+          setShowResultModal(false);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "실적 등록에 실패했습니다.", variant: "error" });
+        }
+        finally { setSavingResult(false); }
+      },
+    });
   };
 
   return (

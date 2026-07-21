@@ -63,21 +63,30 @@ export default function ItemsPage() {
     setShowModal(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.item_name) return;
-    setSaving(true);
-    try {
-      const h = { "X-Business-Id": bizId() };
-      if (editing) {
-        const { current_stock, ...updateBody } = form;
-        await api.put(`/api/production/items/${editing.id}`, updateBody, { headers: h });
-      } else {
-        await api.post("/api/production/items", form, { headers: h });
-      }
-      setShowModal(false);
-      await load();
-    } catch { /* ignore */ }
-    finally { setSaving(false); }
+    setModal({
+      title: editing ? "품목 수정" : "품목 등록", variant: "info", showCancel: true,
+      confirmLabel: editing ? "수정" : "등록",
+      message: editing ? "품목 정보를 수정하시겠습니까?" : "품목을 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const h = { "X-Business-Id": bizId() };
+          if (editing) {
+            const { current_stock, ...updateBody } = form;
+            await api.put(`/api/production/items/${editing.id}`, updateBody, { headers: h });
+          } else {
+            await api.post("/api/production/items", form, { headers: h });
+          }
+          setShowModal(false);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다", variant: "error" });
+        }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const handleDelete = (id: number) => {

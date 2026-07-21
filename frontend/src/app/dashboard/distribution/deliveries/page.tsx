@@ -50,21 +50,27 @@ export default function DeliveriesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const body = {
-        ...form,
-        sales_order_id: form.sales_order_id ? Number(form.sales_order_id) : null,
-        vehicle_id:     form.vehicle_id ? Number(form.vehicle_id) : null,
-        delivery_fee:   form.delivery_fee ? parseFloat(form.delivery_fee) : 0,
-        scheduled_date: form.scheduled_date || null,
-      };
-      await api.post("/api/distribution/deliveries", body, { headers: h() });
-      setShowModal(false); await load();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
-    } finally { setSaving(false); }
+  const handleSave = () => {
+    setModal({
+      title: "배송 지시", variant: "info", showCancel: true, confirmLabel: "지시",
+      message: "배송을 지시하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const body = {
+            ...form,
+            sales_order_id: form.sales_order_id ? Number(form.sales_order_id) : null,
+            vehicle_id:     form.vehicle_id ? Number(form.vehicle_id) : null,
+            delivery_fee:   form.delivery_fee ? parseFloat(form.delivery_fee) : 0,
+            scheduled_date: form.scheduled_date || null,
+          };
+          await api.post("/api/distribution/deliveries", body, { headers: h() });
+          setShowModal(false); await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+        } finally { setSaving(false); }
+      },
+    });
   };
 
   const handleStatusChange = async (id: number, status: string) => {

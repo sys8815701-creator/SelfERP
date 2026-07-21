@@ -33,17 +33,24 @@ export default function VehiclesPage() {
   const openCreate = () => { setForm({ ...EMPTY }); setEditId(null); setShowModal(true); };
   const openEdit   = (v: any) => { setForm({ plate_no: v.plate_no, vehicle_type: v.vehicle_type || "", driver_name: v.driver_name || "", driver_phone: v.driver_phone || "", max_weight: v.max_weight ?? "", note: v.note || "", is_active: v.is_active ?? 1 }); setEditId(v.id); setShowModal(true); };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.plate_no) return;
-    setSaving(true);
-    try {
-      const body = { ...form, max_weight: form.max_weight ? parseFloat(form.max_weight) : null };
-      if (editId) await api.put(`/api/distribution/vehicles/${editId}`, body, { headers: h() });
-      else await api.post("/api/distribution/vehicles", body, { headers: h() });
-      setShowModal(false); setSelected(null); await load();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
-    } finally { setSaving(false); }
+    setModal({
+      title: editId ? "차량 수정" : "차량 등록", variant: "info", showCancel: true,
+      confirmLabel: editId ? "수정" : "등록",
+      message: editId ? "차량 정보를 수정하시겠습니까?" : "차량을 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const body = { ...form, max_weight: form.max_weight ? parseFloat(form.max_weight) : null };
+          if (editId) await api.put(`/api/distribution/vehicles/${editId}`, body, { headers: h() });
+          else await api.post("/api/distribution/vehicles", body, { headers: h() });
+          setShowModal(false); setSelected(null); await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+        } finally { setSaving(false); }
+      },
+    });
   };
 
   const handleDelete = (id: number) => {

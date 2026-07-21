@@ -83,28 +83,35 @@ export default function TaxInvoicePage() {
     setForm(updated);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.issue_date || !form.supply_amount) return;
-    setSaving(true);
-    try {
-      const h = { "X-Business-Id": bizId() };
-      const body: any = {
-        ...form,
-        vendor_id:     form.vendor_id ? Number(form.vendor_id) : null,
-        supply_amount: parseFloat(form.supply_amount),
-        tax_amount:    form.tax_amount ? parseFloat(form.tax_amount) : null,
-      };
-      if (editing) {
-        await api.put(`/api/accounting/tax-invoice/${editing.id}`, body, { headers: h });
-      } else {
-        await api.post("/api/accounting/tax-invoice/", body, { headers: h });
-      }
-      setShowModal(false);
-      await load();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
-    }
-    finally { setSaving(false); }
+    setModal({
+      title: editing ? "세금계산서 수정" : "세금계산서 등록", variant: "info", showCancel: true,
+      confirmLabel: editing ? "수정" : "등록",
+      message: editing ? "세금계산서 내용을 수정하시겠습니까?" : "세금계산서를 등록하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const h = { "X-Business-Id": bizId() };
+          const body: any = {
+            ...form,
+            vendor_id:     form.vendor_id ? Number(form.vendor_id) : null,
+            supply_amount: parseFloat(form.supply_amount),
+            tax_amount:    form.tax_amount ? parseFloat(form.tax_amount) : null,
+          };
+          if (editing) {
+            await api.put(`/api/accounting/tax-invoice/${editing.id}`, body, { headers: h });
+          } else {
+            await api.post("/api/accounting/tax-invoice/", body, { headers: h });
+          }
+          setShowModal(false);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+        }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const handleDelete = (id: number) => {

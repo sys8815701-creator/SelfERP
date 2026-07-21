@@ -87,16 +87,24 @@ export default function ContractsPage() {
     setError(""); setShowModal(true);
   };
 
-  const saveContract = async () => {
+  const saveContract = () => {
     if (!form.title.trim()) { setError("계약서 제목을 입력하세요"); return; }
-    setSaving(true); setError("");
-    try {
-      const payload = { ...form, employee_id: form.employee_id ? Number(form.employee_id) : null, start_date: form.start_date || null, end_date: form.end_date || null };
-      if (editingContract) await api.put(`/api/hr/contracts/${editingContract.id}`, payload, { headers: bizHeaders() });
-      else await api.post("/api/hr/contracts", payload, { headers: bizHeaders() });
-      setShowModal(false); fetchAll();
-    } catch (e: any) { setError(e?.response?.data?.detail || "저장 실패"); }
-    setSaving(false);
+    setError("");
+    setModal({
+      title: editingContract ? "계약서 수정" : "계약서 추가", variant: "info", showCancel: true,
+      confirmLabel: editingContract ? "수정" : "추가",
+      message: editingContract ? "계약서 내용을 수정하시겠습니까?" : "계약서를 추가하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const payload = { ...form, employee_id: form.employee_id ? Number(form.employee_id) : null, start_date: form.start_date || null, end_date: form.end_date || null };
+          if (editingContract) await api.put(`/api/hr/contracts/${editingContract.id}`, payload, { headers: bizHeaders() });
+          else await api.post("/api/hr/contracts", payload, { headers: bizHeaders() });
+          setShowModal(false); fetchAll();
+        } catch (e: any) { setModal({ message: e?.response?.data?.detail || "저장 실패", variant: "error" }); }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const updateSignStatus = async (id: number, sign_status: string) => {

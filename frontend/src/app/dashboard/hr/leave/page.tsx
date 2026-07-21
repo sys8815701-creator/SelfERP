@@ -77,17 +77,25 @@ export default function LeavePage() {
     setError(""); setShowModal(true);
   };
 
-  const saveLeave = async () => {
+  const saveLeave = () => {
     if (canWrite(role) && !form.employee_id) { setError("직원을 선택하세요"); return; }
     if (!form.start_date || !form.end_date) { setError("날짜를 입력하세요"); return; }
-    setSaving(true); setError("");
-    try {
-      const payload = { ...form, employee_id: Number(form.employee_id) };
-      if (editingLeave) await api.put(`/api/hr/leaves/${editingLeave.id}`, payload, { headers: bizHeaders() });
-      else await api.post("/api/hr/leaves", payload, { headers: bizHeaders() });
-      setShowModal(false); fetchAll();
-    } catch (e: any) { setError(e?.response?.data?.detail || "저장 실패"); }
-    setSaving(false);
+    setError("");
+    setModal({
+      title: editingLeave ? "휴가 수정" : "휴가 신청", variant: "info", showCancel: true,
+      confirmLabel: editingLeave ? "수정" : "신청",
+      message: editingLeave ? "휴가 신청 내용을 수정하시겠습니까?" : "휴가를 신청하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const payload = { ...form, employee_id: Number(form.employee_id) };
+          if (editingLeave) await api.put(`/api/hr/leaves/${editingLeave.id}`, payload, { headers: bizHeaders() });
+          else await api.post("/api/hr/leaves", payload, { headers: bizHeaders() });
+          setShowModal(false); fetchAll();
+        } catch (e: any) { setModal({ message: e?.response?.data?.detail || "저장 실패", variant: "error" }); }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const updateStatus = async (id: number, status: string) => {

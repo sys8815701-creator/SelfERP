@@ -91,27 +91,34 @@ export default function EstimatesPage() {
   const tax    = Math.round(supply * 0.1);
   const total  = supply + tax;
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.issue_date) return;
-    setSaving(true);
-    try {
-      const h = { "X-Business-Id": bizId() };
-      const body = {
-        ...form,
-        vendor_id: form.vendor_id ? Number(form.vendor_id) : null,
-        items: items.map(i => ({ ...i, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })),
-      };
-      if (editing) {
-        await api.put(`/api/accounting/estimates/${editing.id}`, body, { headers: h });
-      } else {
-        await api.post("/api/accounting/estimates/", body, { headers: h });
-      }
-      setShowModal(false);
-      await load();
-    } catch (e: any) {
-      setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
-    }
-    finally { setSaving(false); }
+    setModal({
+      title: editing ? "문서 수정" : "문서 발행", variant: "info", showCancel: true,
+      confirmLabel: editing ? "수정" : "발행",
+      message: editing ? "문서 내용을 수정하시겠습니까?" : "문서를 발행하시겠습니까?",
+      onConfirm: async () => {
+        setSaving(true);
+        try {
+          const h = { "X-Business-Id": bizId() };
+          const body = {
+            ...form,
+            vendor_id: form.vendor_id ? Number(form.vendor_id) : null,
+            items: items.map(i => ({ ...i, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })),
+          };
+          if (editing) {
+            await api.put(`/api/accounting/estimates/${editing.id}`, body, { headers: h });
+          } else {
+            await api.post("/api/accounting/estimates/", body, { headers: h });
+          }
+          setShowModal(false);
+          await load();
+        } catch (e: any) {
+          setModal({ message: e?.response?.data?.detail ?? "저장에 실패했습니다.", variant: "error" });
+        }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const handleDelete = (id: number) => {

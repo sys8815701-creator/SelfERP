@@ -204,7 +204,10 @@ export default function DashboardPage() {
   const toggleTodo = async (id: number) => {
     setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
     try { await api.patch(`/api/dashboard/todos/${id}/toggle`); }
-    catch { setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t)); }
+    catch (e: any) {
+      setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+      setModal({ message: e?.response?.data?.detail ?? "할 일 상태 변경에 실패했습니다", variant: "error" });
+    }
   };
 
   /* Todo 추가 */
@@ -216,7 +219,9 @@ export default function DashboardPage() {
       setTodos(prev => [...prev, res.data]);
       setNewTodoText("");
       setAddingTodo(false);
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "할 일 추가에 실패했습니다", variant: "error" });
+    }
   };
 
   /* Todo 수정 저장 */
@@ -227,7 +232,9 @@ export default function DashboardPage() {
       await api.patch(`/api/dashboard/todos/${id}`, { text });
       setTodos(prev => prev.map(t => t.id === id ? { ...t, text } : t));
       setEditingTodoId(null);
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "할 일 수정에 실패했습니다", variant: "error" });
+    }
   };
 
   /* Todo 삭제 */
@@ -235,7 +242,9 @@ export default function DashboardPage() {
     try {
       await api.delete(`/api/dashboard/todos/${id}`);
       setTodos(prev => prev.filter(t => t.id !== id));
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      setModal({ message: e?.response?.data?.detail ?? "할 일 삭제에 실패했습니다", variant: "error" });
+    }
   };
 
   /* AI 질문 */
