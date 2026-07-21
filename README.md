@@ -9,7 +9,7 @@
 
 | 구분 | URL |
 |------|-----|
-| 홈페이지 | selferp.simyugyeong.com |
+| 홈페이지 | [selferp.simyugyeong.com](https://selferp.simyugyeong.com/) |
 | FastAPI 자동 문서 | http://localhost:8002/docs |
 
 ---
