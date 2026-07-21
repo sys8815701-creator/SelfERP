@@ -16,14 +16,14 @@ type MenuAccess = {
 };
 
 const DEFAULT_ACCESS: MenuAccess[] = [
-  { module: "인사",   label: "직원 관리",      admin: true,  manager: true,  viewer: true  },
+  { module: "인사",   label: "직원 관리",      admin: true,  manager: true,  viewer: false },
   { module: "인사",   label: "급여 정산",      admin: true,  manager: false, viewer: false },
   { module: "인사",   label: "계약서",         admin: true,  manager: true,  viewer: true  },
   { module: "인사",   label: "휴가 관리",      admin: true,  manager: true,  viewer: true  },
   { module: "회계",   label: "회계 장부",       admin: true,  manager: true,  viewer: false },
-  { module: "회계",   label: "영수증 OCR",     admin: true,  manager: true,  viewer: false },
-  { module: "회계",   label: "경비 정산",      admin: true,  manager: true,  viewer: false },
-  { module: "회계",   label: "거래처 관리",    admin: true,  manager: true,  viewer: true  },
+  { module: "회계",   label: "영수증 OCR",     admin: true,  manager: true,  viewer: true  },
+  { module: "회계",   label: "경비 정산",      admin: true,  manager: true,  viewer: true  },
+  { module: "회계",   label: "거래처 관리",    admin: true,  manager: true,  viewer: false },
   { module: "회계",   label: "미수금 · 미지급금",admin: true,  manager: true,  viewer: false },
   { module: "회계",   label: "재무제표",       admin: true,  manager: false, viewer: false },
   { module: "회계",   label: "세금계산서",     admin: true,  manager: true,  viewer: false },
