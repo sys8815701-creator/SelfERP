@@ -70,6 +70,12 @@ def get_current_business(
             if business:
                 return business
 
+        # x_business_id가 명시적으로 지정됐는데 위 1/2/2b 어디에도 해당하지 않으면,
+        # 소속되지 않은 사업장이라는 뜻이므로 즉시 거부해야 한다 — 여기서 막지 않고
+        # 아래 3~5(헤더 없을 때의 폴백)로 흘러가면, 요청한 사업장 대신 자신이
+        # 소유한 "다른" 사업장 데이터가 조용히 반환되는 사고로 이어질 수 있다.
+        raise HTTPException(status_code=403, detail="이 사업장에 접근할 권한이 없습니다.")
+
     # 3. x_business_id 없을 때 소유 사업장 조회
     business = db.query(Business).filter(Business.user_id == user.id).first()
     if business:
