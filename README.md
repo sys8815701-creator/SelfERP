@@ -9,7 +9,7 @@
 
 | 구분 | URL |
 |------|-----|
-| 홈페이지 | http://localhost:3000 |
+| 홈페이지 | selferp.simyugyeong.com |
 | FastAPI 자동 문서 | http://localhost:8002/docs |
 
 ---
@@ -391,7 +391,7 @@ accounting-platform/
 
 ## 프론트 화면 구성
 
-Next.js 15 App Router 기반, 전 페이지 **다크 · 라이트 테마** 지원.
+Next.js 15 App Router 기반, 전 페이지 **다크 · 라이트 테마** 지원
 
 ### 통합관리
 | 화면 | 경로 | 주요 기능 |
