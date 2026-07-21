@@ -22,7 +22,9 @@ export default function SocialCallbackPage() {
     (async () => {
       try {
         // 토큰으로 사용자 정보 조회
-        const meRes = await axios.get(`${API_BASE}/api/auth/me?token=${token}`);
+        const meRes = await axios.get(`${API_BASE}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const user = meRes.data;
 
         // 이전 세션 데이터 초기화
