@@ -5,6 +5,7 @@ import { CreditCard, ArrowDownCircle, ArrowUpCircle, Pencil, Trash2, Check, X } 
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
 import { addNotif } from "@/lib/notif";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
 interface Transaction {
   id: number; date: string; description: string;
@@ -17,6 +18,7 @@ const CATEGORIES = ["상품매출", "서비스매출", "기타수입", "식재�
 const emptyBankForm: BankInfo = { bank_name: "", account_number: "", bank_holder: "" };
 
 export default function CardPage() {
+  const role = useRole();
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"all" | "income" | "expense">("all");
@@ -221,12 +223,14 @@ export default function CardPage() {
         </div>
       ) : bankInfo ? (
         <div style={{ ...card, padding: "20px", background: "#FFBE50", color: "#1a1000", position: "relative" }}>
-          <button
-            onClick={() => { setBankForm(bankInfo); setIsNewBank(false); setEditingBank(true); }}
-            style={{ position: "absolute", top: "16px", right: "16px", width: "30px", height: "30px", borderRadius: "7px", border: "1px solid rgba(26,16,0,0.25)", backgroundColor: "rgba(26,16,0,0.08)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1a1000" }}
-            title="은행 정보 수정">
-            <Pencil size={14} />
-          </button>
+          {canWrite(role) && (
+            <button
+              onClick={() => { setBankForm(bankInfo); setIsNewBank(false); setEditingBank(true); }}
+              style={{ position: "absolute", top: "16px", right: "16px", width: "30px", height: "30px", borderRadius: "7px", border: "1px solid rgba(26,16,0,0.25)", backgroundColor: "rgba(26,16,0,0.08)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1a1000" }}
+              title="은행 정보 수정">
+              <Pencil size={14} />
+            </button>
+          )}
           <div style={{ marginBottom: "24px" }}>
             <p style={{ fontSize: "12px", fontWeight: 600, opacity: 0.7 }}>주 거래 은행</p>
             <p style={{ fontSize: "18px", fontWeight: 800 }}>{bankInfo.bank_holder}</p>
@@ -240,11 +244,13 @@ export default function CardPage() {
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>주 거래 은행</p>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>등록된 은행 정보가 없습니다</p>
           </div>
-          <button
-            onClick={() => { setBankForm(emptyBankForm); setIsNewBank(true); setEditingBank(true); }}
-            style={{ padding: "8px 16px", backgroundColor: "#FFBE50", color: "#1a1000", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-            주 거래 은행 등록
-          </button>
+          {canWrite(role) && (
+            <button
+              onClick={() => { setBankForm(emptyBankForm); setIsNewBank(true); setEditingBank(true); }}
+              style={{ padding: "8px 16px", backgroundColor: "#FFBE50", color: "#1a1000", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              주 거래 은행 등록
+            </button>
+          )}
         </div>
       )}
 
@@ -263,16 +269,16 @@ export default function CardPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ backgroundColor: "var(--bg-surface-2)", borderBottom: "1px solid var(--border)" }}>
-              {["날짜", "내용", "구분", "금액", ""].map((h, i) => (
+              {["날짜", "내용", "구분", "금액", ...(canWrite(role) ? [""] : [])].map((h, i) => (
                 <th key={i} style={{ padding: "10px 16px", textAlign: h === "금액" ? "right" : "left", fontSize: "12px", fontWeight: 600, color: "var(--text-muted)", width: h === "" ? "80px" : undefined }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>불러오는 중...</td></tr>
+              <tr><td colSpan={canWrite(role) ? 5 : 4} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>불러오는 중...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>{month} 거래 내역이 없습니다</td></tr>
+              <tr><td colSpan={canWrite(role) ? 5 : 4} style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>{month} 거래 내역이 없습니다</td></tr>
             ) : filtered.map((tx, i) => {
               const isEditing = editingTxId === tx.id;
               const d = new Date(tx.date + "T00:00:00");
@@ -334,20 +340,24 @@ export default function CardPage() {
                   <td style={{ padding: "12px 16px", textAlign: "right", fontSize: "14px", fontWeight: 800, color: tx.is_income ? "var(--accent)" : "#EF4444" }}>
                     {tx.is_income ? "+" : "-"}{(tx.is_income ? tx.deposit : tx.withdrawal).toLocaleString("ko-KR")}원
                   </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                      <button onClick={() => startEditTx(tx)} style={iconBtn} title="수정"
-                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = "var(--bg-surface-2)"; e.currentTarget.style.color = "var(--accent)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
-                        <Pencil size={12} />
-                      </button>
-                      <button onClick={() => deleteTx(tx.id)} style={iconBtn} title="삭제"
-                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.1)"; e.currentTarget.style.color = "#EF4444"; }}
-                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
+                  {canWrite(role) && (
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                        <button onClick={() => startEditTx(tx)} style={iconBtn} title="수정"
+                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = "var(--bg-surface-2)"; e.currentTarget.style.color = "var(--accent)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
+                          <Pencil size={12} />
+                        </button>
+                        {canDelete(role) && (
+                          <button onClick={() => deleteTx(tx.id)} style={iconBtn} title="삭제"
+                            onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.1)"; e.currentTarget.style.color = "#EF4444"; }}
+                            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}

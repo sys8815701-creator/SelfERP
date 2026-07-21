@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
 interface Department {
   id: number;
@@ -28,6 +29,7 @@ const emptyDept = { name: "", code: "", description: "", parent_id: null as numb
 const emptyPos  = { name: "", level: 1, description: "" };
 
 export default function DepartmentsPage() {
+  const role = useRole();
   const [tab, setTab] = useState<Tab>("dept");
 
   const [depts, setDepts] = useState<Department[]>([]);
@@ -139,10 +141,12 @@ export default function DepartmentsPage() {
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>부서 · 직급 관리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>조직 구조를 설정하세요</p>
         </div>
-        <button onClick={tab === "dept" ? openDeptCreate : openPosCreate}
-          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + {tab === "dept" ? "부서" : "직급"} 추가
-        </button>
+        {canWrite(role) && (
+          <button onClick={tab === "dept" ? openDeptCreate : openPosCreate}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + {tab === "dept" ? "부서" : "직급"} 추가
+          </button>
+        )}
       </div>
 
       {/* 탭 */}
@@ -163,16 +167,18 @@ export default function DepartmentsPage() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
             <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◎</p>
             <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 부서가 없습니다</p>
-            <button onClick={openDeptCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
-              첫 번째 부서 추가
-            </button>
+            {canWrite(role) && (
+              <button onClick={openDeptCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
+                첫 번째 부서 추가
+              </button>
+            )}
           </div>
         ) : (
           <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", boxShadow: "var(--shadow)", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["부서명", "코드", "상위 부서", "재직 인원", "설명", ""].map(h => (
+                  {["부서명", "코드", "상위 부서", "재직 인원", "설명", ...(canWrite(role) ? [""] : [])].map(h => (
                     <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "var(--text-subtle)", letterSpacing: "0.5px" }}>{h}</th>
                   ))}
                 </tr>
@@ -199,18 +205,22 @@ export default function DepartmentsPage() {
                         <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "2px" }}>명</span>
                       </td>
                       <td style={{ padding: "13px 16px", fontSize: "12px", color: "var(--text-muted)", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.description || "—"}</td>
-                      <td style={{ padding: "13px 16px", textAlign: "right" }}>
-                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                          <button onClick={() => openDeptEdit(d)}
-                            style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
-                            수정
-                          </button>
-                          <button onClick={() => deleteDept(d.id)}
-                            style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.40)", backgroundColor: "rgba(239,68,68,0.12)", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>
-                            삭제
-                          </button>
-                        </div>
-                      </td>
+                      {canWrite(role) && (
+                        <td style={{ padding: "13px 16px", textAlign: "right" }}>
+                          <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                            <button onClick={() => openDeptEdit(d)}
+                              style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
+                              수정
+                            </button>
+                            {canDelete(role) && (
+                              <button onClick={() => deleteDept(d.id)}
+                                style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.40)", backgroundColor: "rgba(239,68,68,0.12)", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>
+                                삭제
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -228,16 +238,18 @@ export default function DepartmentsPage() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "320px", textAlign: "center", padding: "40px 20px", backgroundColor: "var(--bg-surface)", borderRadius: "16px", border: "1px solid var(--border)" }}>
             <p style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.3 }}>◑</p>
             <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>등록된 직급이 없습니다</p>
-            <button onClick={openPosCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
-              첫 번째 직급 추가
-            </button>
+            {canWrite(role) && (
+              <button onClick={openPosCreate} style={{ marginTop: "16px", fontSize: "13px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontWeight: 600 }}>
+                첫 번째 직급 추가
+              </button>
+            )}
           </div>
         ) : (
           <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "16px", boxShadow: "var(--shadow)", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["직급명", "레벨", "재직 인원", "설명", ""].map(h => (
+                  {["직급명", "레벨", "재직 인원", "설명", ...(canWrite(role) ? [""] : [])].map(h => (
                     <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "var(--text-subtle)", letterSpacing: "0.5px" }}>{h}</th>
                   ))}
                 </tr>
@@ -270,18 +282,22 @@ export default function DepartmentsPage() {
                       <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "2px" }}>명</span>
                     </td>
                     <td style={{ padding: "13px 16px", fontSize: "12px", color: "var(--text-muted)" }}>{p.description || "—"}</td>
-                    <td style={{ padding: "13px 16px", textAlign: "right" }}>
-                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                        <button onClick={() => openPosEdit(p)}
-                          style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
-                          수정
-                        </button>
-                        <button onClick={() => deletePos(p.id)}
-                          style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.3)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>
-                          삭제
-                        </button>
-                      </div>
-                    </td>
+                    {canWrite(role) && (
+                      <td style={{ padding: "13px 16px", textAlign: "right" }}>
+                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                          <button onClick={() => openPosEdit(p)}
+                            style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid var(--border)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
+                            수정
+                          </button>
+                          {canDelete(role) && (
+                            <button onClick={() => deletePos(p.id)}
+                              style={{ padding: "5px 12px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.3)", backgroundColor: "transparent", cursor: "pointer", fontSize: "12px", color: "#EF4444", fontWeight: 600 }}>
+                              삭제
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

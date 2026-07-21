@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { useRole, canWrite } from "@/hooks/useRole";
 
 const LOG_TYPE_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
   입고:     { backgroundColor: "rgba(21,128,61,0.12)",   color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
@@ -19,6 +20,7 @@ function fmt(v: any) {
 }
 
 export default function InventoryLogPage() {
+  const role = useRole();
   const [logs, setLogs]         = useState<any[]>([]);
   const [items, setItems]       = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -75,10 +77,12 @@ export default function InventoryLogPage() {
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>입출고 이력</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>자재 입출고 이력을 조회하고 등록합니다. · {logs.length}건</p>
         </div>
-        <button onClick={() => setShowModal(true)}
-          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 입출고 등록
-        </button>
+        {canWrite(role) && (
+          <button onClick={() => setShowModal(true)}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 입출고 등록
+          </button>
+        )}
       </div>
 
       {/* 필터 */}

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
 const ITEMS_PAGE_SIZE = 5;
 const MONTHLY_PAGE_SIZE = 5;
@@ -41,6 +42,7 @@ function RateBar({ rate, btype }: { rate: number | null; btype: string }) {
 }
 
 export default function BudgetPage() {
+  const role = useRole();
   const [year, setYear]   = useState(new Date().getFullYear());
   const [month, setMonth] = useState<number | null>(null);
   const [data, setData]   = useState<any>(null);
@@ -158,10 +160,12 @@ export default function BudgetPage() {
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>예산 관리</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>월별 예산을 설정하고 실적과 비교합니다</p>
         </div>
-        <button onClick={() => openCreate()}
-          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 예산 항목 등록
-        </button>
+        {canWrite(role) && (
+          <button onClick={() => openCreate()}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 예산 항목 등록
+          </button>
+        )}
       </div>
 
       {/* 연/월 선택 */}
@@ -254,7 +258,7 @@ export default function BudgetPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ backgroundColor: "var(--bg-surface-2)" }}>
-                {["월", "구분", "항목", "예산 금액", "메모", ""].map(h => (
+                {["월", "구분", "항목", "예산 금액", "메모", ...(canWrite(role) ? [""] : [])].map(h => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "var(--text-muted)" }}>{h}</th>
                 ))}
               </tr>
@@ -274,14 +278,18 @@ export default function BudgetPage() {
                   <td style={{ padding: "11px 14px", fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>{b.category}</td>
                   <td style={{ padding: "11px 14px", fontSize: "13px", color: "var(--text-primary)", fontWeight: 600 }}>{fmt(b.amount)}</td>
                   <td style={{ padding: "11px 14px", fontSize: "12px", color: "var(--text-muted)" }}>{b.note || "—"}</td>
-                  <td style={{ padding: "11px 14px" }}>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => openEdit(b)}
-                        style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
-                      <button onClick={() => handleDelete(b.id)}
-                        style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
-                    </div>
-                  </td>
+                  {canWrite(role) && (
+                    <td style={{ padding: "11px 14px" }}>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button onClick={() => openEdit(b)}
+                          style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
+                        {canDelete(role) && (
+                          <button onClick={() => handleDelete(b.id)}
+                            style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -307,9 +315,11 @@ export default function BudgetPage() {
       {!loading && items.length === 0 && monthly.length === 0 && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "280px", textAlign: "center", padding: "40px", color: "var(--text-muted)", fontSize: "13px" }}>
           설정된 예산이 없습니다<br />
-          <button onClick={() => openCreate()} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-            첫 예산 항목 등록
-          </button>
+          {canWrite(role) && (
+            <button onClick={() => openCreate()} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              첫 예산 항목 등록
+            </button>
+          )}
         </div>
       )}
 

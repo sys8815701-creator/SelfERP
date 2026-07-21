@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
 const DIR_COLOR: Record<string, { backgroundColor: string; color: string; border: string }> = {
   발행: { backgroundColor: "rgba(21,128,61,0.12)",  color: "#15803D", border: "1px solid rgba(21,128,61,0.40)" },
@@ -23,6 +24,7 @@ function fmt(v: any) {
 }
 
 export default function TaxInvoicePage() {
+  const role = useRole();
   const [list, setList]         = useState<any[]>([]);
   const [summary, setSummary]   = useState<any>(null);
   const [vendors, setVendors]   = useState<any[]>([]);
@@ -134,10 +136,12 @@ export default function TaxInvoicePage() {
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>세금계산서</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>매출/매입 세금계산서를 관리합니다. · {list.length}건</p>
         </div>
-        <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + 세금계산서 등록
-        </button>
+        {canWrite(role) && (
+          <button onClick={openCreate}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + 세금계산서 등록
+          </button>
+        )}
       </div>
 
       {/* 부가세 요약 */}
@@ -195,7 +199,9 @@ export default function TaxInvoicePage() {
             ) : list.length === 0 ? (
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
                 등록된 세금계산서가 없습니다<br />
-                <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>세금계산서 등록</button>
+                {canWrite(role) && (
+                  <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>세금계산서 등록</button>
+                )}
               </td></tr>
             ) : list.map((item, i) => {
               const dc = DIR_COLOR[item.direction] || { backgroundColor: "rgba(107,114,128,0.10)", color: "#374151", border: "1px solid rgba(107,114,128,0.30)" };
@@ -215,21 +221,29 @@ export default function TaxInvoicePage() {
                   <td style={{ padding: "12px 14px", fontSize: "13px", color: "var(--text-secondary)", textAlign: "right" }}>{fmt(item.tax_amount)}</td>
                   <td style={{ padding: "12px 14px", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", textAlign: "right" }}>{fmt(item.total_amount)}</td>
                   <td style={{ padding: "12px 14px" }}>
-                    <select
-                      value={item.status}
-                      onChange={e => { e.stopPropagation(); handleStatusChange(item, e.target.value); }}
-                      style={{ padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, ...sc, cursor: "pointer" }}>
-                      <option value="임시저장">임시저장</option>
-                      <option value="발행완료">발행완료</option>
-                      <option value="취소">취소</option>
-                    </select>
+                    {canWrite(role) ? (
+                      <select
+                        value={item.status}
+                        onChange={e => { e.stopPropagation(); handleStatusChange(item, e.target.value); }}
+                        style={{ padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, ...sc, cursor: "pointer" }}>
+                        <option value="임시저장">임시저장</option>
+                        <option value="발행완료">발행완료</option>
+                        <option value="취소">취소</option>
+                      </select>
+                    ) : (
+                      <span style={{ padding: "4px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, ...sc }}>{item.status}</span>
+                    )}
                   </td>
                   <td style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => openEdit(item)}
-                        style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
-                      <button onClick={() => handleDelete(item.id)}
-                        style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
+                      {canWrite(role) && (
+                        <button onClick={() => openEdit(item)}
+                          style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
+                      )}
+                      {canDelete(role) && (
+                        <button onClick={() => handleDelete(item.id)}
+                          style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
+                      )}
                     </div>
                   </td>
                 </tr>

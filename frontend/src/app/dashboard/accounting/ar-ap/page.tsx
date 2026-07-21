@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
 import Modal, { ModalConfig } from "@/components/Modal";
+import { useRole, canWrite, canDelete } from "@/hooks/useRole";
 
 type Tab = "ar" | "ap";
 
@@ -35,6 +36,7 @@ function isOverdue(due_date: string, status: string) {
 }
 
 export default function ArApPage() {
+  const role = useRole();
   const [tab, setTab] = useState<Tab>("ar");
   const [arList, setArList] = useState<any[]>([]);
   const [apList, setApList] = useState<any[]>([]);
@@ -188,10 +190,12 @@ export default function ArApPage() {
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "4px" }}>미수금 · 미지급금</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>외상매출금(AR)과 외상매입금(AP)을 관리합니다</p>
         </div>
-        <button onClick={openCreate}
-          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-          + {tab === "ar" ? "미수금 등록" : "미지급금 등록"}
-        </button>
+        {canWrite(role) && (
+          <button onClick={openCreate}
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            + {tab === "ar" ? "미수금 등록" : "미지급금 등록"}
+          </button>
+        )}
       </div>
 
       {/* 탭 */}
@@ -246,7 +250,9 @@ export default function ArApPage() {
             ) : list.length === 0 ? (
               <tr><td colSpan={9} style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
                 등록된 항목이 없습니다<br />
-                <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>첫 항목 등록</button>
+                {canWrite(role) && (
+                  <button onClick={openCreate} style={{ marginTop: "12px", padding: "8px 16px", backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1.5px solid #C49A30", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>첫 항목 등록</button>
+                )}
               </td></tr>
             ) : list.map((item, i) => {
               const sc = STATUS_COLOR[item.status] || { bg: "rgba(107,114,128,0.10)", color: "#6B7280", border: "1px solid rgba(107,114,128,0.30)" };
@@ -268,20 +274,28 @@ export default function ArApPage() {
                   <td style={{ padding: "12px 14px", fontSize: "12px", color: "var(--text-muted)" }}>{item.issue_date}</td>
                   <td style={{ padding: "12px 14px", fontSize: "12px", color: overdue ? "#DC2626" : "var(--text-muted)", fontWeight: overdue ? 700 : 400 }}>{item.due_date}</td>
                   <td style={{ padding: "12px 14px" }}>
-                    <select
-                      value={item.status}
-                      onChange={e => { e.stopPropagation(); handleStatusChange(item, e.target.value); }}
-                      onClick={e => e.stopPropagation()}
-                      style={{ padding: "4px 8px", borderRadius: "6px", border: sc.border, fontSize: "11px", fontWeight: 700, backgroundColor: sc.bg, color: sc.color, cursor: "pointer" }}>
-                      {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    {canWrite(role) ? (
+                      <select
+                        value={item.status}
+                        onChange={e => { e.stopPropagation(); handleStatusChange(item, e.target.value); }}
+                        onClick={e => e.stopPropagation()}
+                        style={{ padding: "4px 8px", borderRadius: "6px", border: sc.border, fontSize: "11px", fontWeight: 700, backgroundColor: sc.bg, color: sc.color, cursor: "pointer" }}>
+                        {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    ) : (
+                      <span style={{ padding: "4px 8px", borderRadius: "6px", border: sc.border, fontSize: "11px", fontWeight: 700, backgroundColor: sc.bg, color: sc.color }}>{item.status}</span>
+                    )}
                   </td>
                   <td style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => openEdit(item)}
-                        style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
-                      <button onClick={() => handleDelete(item.id)}
-                        style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
+                      {canWrite(role) && (
+                        <button onClick={() => openEdit(item)}
+                          style={{ fontSize: "12px", color: "var(--text-muted)", background: "none", border: "1px solid var(--border)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>수정</button>
+                      )}
+                      {canDelete(role) && (
+                        <button onClick={() => handleDelete(item.id)}
+                          style={{ fontSize: "12px", color: "#DC2626", backgroundColor: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.40)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer" }}>삭제</button>
+                      )}
                     </div>
                   </td>
                 </tr>
