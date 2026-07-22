@@ -78,7 +78,7 @@ export default function Sidebar() {
           </div>
           <div>
             <p className="text-white font-bold text-sm">SelfERP</p>
-            <p className="text-slate-400 text-xs">소상공인 회계 ERP</p>
+            <p className="text-slate-400 text-xs">소상공인 ERP</p>
           </div>
         </div>
       </div>

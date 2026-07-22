@@ -375,7 +375,7 @@ export default function HelpPage() {
       {/* 버전 정보 */}
       {!isSearching && (
         <div style={{ textAlign: "center", padding: "10px 0" }}>
-          <p style={{ fontSize: "13px", color: "var(--text-subtle)" }}>SelfERP v1.0.0 · 소상공인 전용 AI 회계 ERP</p>
+          <p style={{ fontSize: "13px", color: "var(--text-subtle)" }}>SelfERP v1.0.0 · 소상공인 전용 AI ERP</p>
         </div>
       )}
     </div>

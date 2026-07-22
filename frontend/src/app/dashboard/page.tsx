@@ -539,7 +539,7 @@ export default function DashboardPage() {
           </div>
 
           <p style={{ textAlign: "center", fontSize: "11px", color: "var(--text-subtle)", paddingBottom: "16px" }}>
-            © 2026 SelfERP · 소상공인을 위한 가장 친절한 회계 ERP
+            © 2026 SelfERP · 소상공인을 위한 가장 친절한 ERP
           </p>
         </div>
 

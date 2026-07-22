@@ -29,7 +29,7 @@ export default function Home() {
         </div>
         <div style={{ textAlign: "center" }}>
           <h1 style={{ fontSize: "38px", fontWeight: "900", color: "var(--text-primary)", letterSpacing: "-1px" }}>SelfERP</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "16px", marginTop: "8px" }}>소상공인 회계 ERP</p>
+          <p style={{ color: "var(--text-muted)", fontSize: "16px", marginTop: "8px" }}>소상공인 ERP</p>
         </div>
       </div>
 
@@ -42,7 +42,7 @@ export default function Home() {
       </Link>
 
       <p style={{ color: "var(--text-subtle)", fontSize: "13px", marginTop: "48px" }}>
-        © 2026 SelfERP · 소상공인을 위한 가장 친절한 회계 ERP
+        © 2026 SelfERP · 소상공인을 위한 가장 친절한 ERP
       </p>
     </div>
   );

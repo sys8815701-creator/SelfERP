@@ -619,7 +619,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div>
               <p style={{ color: "var(--text-primary)", fontWeight: 800, fontSize: "14px", lineHeight: 1 }}>SelfERP</p>
-              <p style={{ color: "var(--text-muted)", fontSize: "10px", marginTop: "3px" }}>소상공인 회계 ERP</p>
+              <p style={{ color: "var(--text-muted)", fontSize: "10px", marginTop: "3px" }}>소상공인 ERP</p>
             </div>
           </div>
         </div>

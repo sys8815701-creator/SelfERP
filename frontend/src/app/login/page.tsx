@@ -146,7 +146,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)" }}>SelfERP</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "4px" }}>소상공인 회계 ERP</p>
+          <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "4px" }}>소상공인 ERP</p>
         </div>
 
         {/* 로그인 유형 */}
